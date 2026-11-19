@@ -104,6 +104,8 @@ export async function classifyDiscoveredListings(items: RawListing[]): Promise<{
 
   const toInspect: Array<{ item: RawListing; reason: 'new' | 'price_changed' | 'retry_gemini' }> = [];
   let unchangedCount = 0;
+  let batch = db.batch();
+  let batchOps = 0;
 
   const batchSize = 30;
   for (let i = 0; i < items.length; i += batchSize) {
@@ -122,25 +124,33 @@ export async function classifyDiscoveredListings(items: RawListing[]): Promise<{
 
       const existing = snap.data() as Partial<FirestoreListing>;
 
-      // Si antes falló Gemini, reintentar
       if (existing.analyzedWithGemini === false) {
         toInspect.push({ item, reason: 'retry_gemini' });
         continue;
       }
 
-      // Si cambió el precio publicado en el listado, re-inspeccionar
       if (existing.rawPrice && item.rawPrice && existing.rawPrice.trim() !== item.rawPrice.trim()) {
         toInspect.push({ item, reason: 'price_changed' });
         continue;
       }
 
-      // Si no cambió nada: solo registrar lastSeenAt y sumar palabra clave si es nueva
       unchangedCount++;
-      await snap.ref.update({
+      batch.update(snap.ref, {
         lastSeenAt: new Date().toISOString(),
         matchedKeywords: admin.firestore.FieldValue.arrayUnion(item.searchTerm)
-      }).catch(() => {});
+      });
+      batchOps++;
+
+      if (batchOps >= 400) {
+        await batch.commit();
+        batch = db.batch();
+        batchOps = 0;
+      }
     }
+  }
+
+  if (batchOps > 0) {
+    await batch.commit();
   }
 
   return { toInspect, unchangedCount };

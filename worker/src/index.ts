@@ -1,5 +1,4 @@
 import cron from 'node-cron';
-import admin from 'firebase-admin';
 import { CONFIG } from './config';
 import { ScraperService } from './scraper';
 import {
@@ -33,7 +32,6 @@ async function runScrapingCycle() {
   const scraper = new ScraperService();
 
   try {
-    // Cargar configuración dinámica desde Firestore (zonas, keywords, modelo Gemini)
     const settings = await getOrInitScraperSettings();
     const activeLocations = settings.locations.filter((l) => l.enabled);
     const activeTerms = settings.searchTerms.filter((t) => t.enabled);
@@ -52,87 +50,91 @@ async function runScrapingCycle() {
     const page = await context.newPage();
     await scraper.setupResourceBlocking(page);
 
-    const allDiscoveredItems: RawListing[] = [];
+    let totalProcessed = 0;
+    let totalSkipped = 0;
 
-    // 1. Recorrer zonas del Perú y palabras clave habilitadas
+    // Procesar ciudad por ciudad para guardar avances incrementales de inmediato
     for (const loc of activeLocations) {
+      console.log(`\n🌎 --- Procesando Zona: ${loc.city} ---`);
+      const cityItems: RawListing[] = [];
+
       for (const kw of activeTerms) {
         try {
           const items = await scraper.scrapeSearchList(page, loc.path, loc.city, kw.term, kw.category);
-          allDiscoveredItems.push(...items);
+          cityItems.push(...items);
         } catch (err) {
           console.error(`Error buscando "${kw.term}" en ${loc.city}:`, err);
         }
-        await sleep(getRandomDelay(3, 6));
+        await sleep(getRandomDelay(2, 4));
       }
-    }
 
-    // Deduplicar items encontrados en la misma corrida (preservando la primera ocurrencia)
-    const uniqueMap = new Map<string, RawListing>();
-    for (const item of allDiscoveredItems) {
-      if (!uniqueMap.has(item.listingId)) {
-        uniqueMap.set(item.listingId, item);
-      }
-    }
-    const uniqueItems = Array.from(uniqueMap.values());
-    console.log(`\n📊 Total de anuncios únicos recolectados en listados: ${uniqueItems.length}`);
-
-    // 2. Clasificar en Firestore: solo inspeccionar nuevos, cambios de precio o reintentos
-    const { toInspect, unchangedCount } = await classifyDiscoveredListings(uniqueItems);
-    console.log(`⏭️  Omitidos (ya analizados sin cambios): ${unchangedCount}`);
-    console.log(`✨ Anuncios a inspeccionar (nuevos / cambio precio / reintento): ${toInspect.length}`);
-
-    // 3. Inspeccionar únicamente los necesarios con pausas de 6 a 14 segundos
-    let processedCount = 0;
-    for (const entry of toInspect) {
-      const rawItem = entry.item;
-      processedCount++;
-      const pauseMs = getRandomDelay(6, 14);
-      console.log(
-        `\n[${processedCount}/${toInspect.length}] (${entry.reason}) Esperando ${(pauseMs / 1000).toFixed(1)}s antes de inspeccionar ${rawItem.listingId}...`
-      );
-      await sleep(pauseMs);
-
-      try {
-        const detailedItem = await scraper.scrapeItemDetails(page, rawItem);
-
-        console.log(`🤖 Analizando con ${geminiModel}...`);
-        const { specs, success } = await extractSpecsWithGemini(
-          detailedItem.title,
-          detailedItem.rawPrice,
-          detailedItem.description,
-          detailedItem.locationText,
-          detailedItem.searchTerm,
-          geminiModel
-        );
-
-        console.log(
-          `  [${specs.categoria}] Chip: ${specs.chip} | S/ ${specs.precio_normalizado_pen} | Tags: ${specs.tags.join(', ')} | Vendido: ${detailedItem.isSold}`
-        );
-
-        const nowIso = new Date().toISOString();
-        const firestoreRecord: FirestoreListing = {
-          ...detailedItem,
-          ...specs,
-          currentPrice: specs.precio_normalizado_pen,
-          status: detailedItem.isSold ? 'sold' : 'active',
-          matchedKeywords: [rawItem.searchTerm],
-          analyzedWithGemini: success,
-          geminiModelUsed: geminiModel,
-          lastSeenAt: nowIso,
-          updatedAt: nowIso
-        };
-
-        const { isPriceDrop, oldPrice, newPrice } = await saveOrUpdateListing(firestoreRecord);
-        if (isPriceDrop && oldPrice !== undefined) {
-          console.log(`📉 Bajada de precio registrada en Firestore para ${firestoreRecord.listingId}: S/ ${oldPrice} -> S/ ${newPrice}`);
+      // Deduplicar dentro de la ciudad
+      const uniqueMap = new Map<string, RawListing>();
+      for (const item of cityItems) {
+        if (!uniqueMap.has(item.listingId)) {
+          uniqueMap.set(item.listingId, item);
         }
-      } catch (err) {
-        console.error(`Error procesando item individual ${rawItem.listingId}:`, err);
+      }
+      const uniqueCityItems = Array.from(uniqueMap.values());
+      console.log(`📊 ${loc.city}: ${uniqueCityItems.length} anuncios únicos en listados.`);
+
+      // Filtrar en Firestore: omitir los ya analizados sin cambios
+      const { toInspect, unchangedCount } = await classifyDiscoveredListings(uniqueCityItems);
+      totalSkipped += unchangedCount;
+      console.log(`⏭️  ${loc.city}: ${unchangedCount} sin cambios | ✨ ${toInspect.length} por inspeccionar.`);
+
+      let cityProcessed = 0;
+      for (const entry of toInspect) {
+        const rawItem = entry.item;
+        cityProcessed++;
+        totalProcessed++;
+        const pauseMs = getRandomDelay(6, 12);
+        console.log(
+          `\n[${loc.city} ${cityProcessed}/${toInspect.length}] (${entry.reason}) Esperando ${(pauseMs / 1000).toFixed(1)}s -> ${rawItem.listingId}...`
+        );
+        await sleep(pauseMs);
+
+        try {
+          const detailedItem = await scraper.scrapeItemDetails(page, rawItem);
+
+          console.log(`🤖 Analizando con ${geminiModel}...`);
+          const { specs, success } = await extractSpecsWithGemini(
+            detailedItem.title,
+            detailedItem.rawPrice,
+            detailedItem.description,
+            detailedItem.locationText,
+            detailedItem.searchTerm,
+            geminiModel
+          );
+
+          console.log(
+            `  [${specs.categoria}] ${specs.chip} ${specs.chip_variante !== 'N/A' ? specs.chip_variante : ''} | S/ ${specs.precio_normalizado_pen} | Tags: ${specs.tags.join(', ')}`
+          );
+
+          const nowIso = new Date().toISOString();
+          const firestoreRecord: FirestoreListing = {
+            ...detailedItem,
+            ...specs,
+            currentPrice: specs.precio_normalizado_pen,
+            status: detailedItem.isSold ? 'sold' : 'active',
+            matchedKeywords: [rawItem.searchTerm],
+            analyzedWithGemini: success,
+            geminiModelUsed: geminiModel,
+            lastSeenAt: nowIso,
+            updatedAt: nowIso
+          };
+
+          const { isPriceDrop, oldPrice, newPrice } = await saveOrUpdateListing(firestoreRecord);
+          if (isPriceDrop && oldPrice !== undefined) {
+            console.log(`📉 Bajada de precio registrada en Firestore para ${firestoreRecord.listingId}: S/ ${oldPrice} -> S/ ${newPrice}`);
+          }
+        } catch (err) {
+          console.error(`Error procesando item individual ${rawItem.listingId}:`, err);
+        }
       }
     }
 
-    console.log(`\n✅ Ciclo finalizado exitosamente. Procesados: ${processedCount} | Sin cambios: ${unchangedCount}`);
+    console.log(`\n✅ Ciclo finalizado exitosamente. Nuevos/Actualizados: ${totalProcessed} | Omitidos sin cambios: ${totalSkipped}`);
     await context.close();
   } catch (globalErr) {
     console.error('Error crítico durante el ciclo de scraping:', globalErr);
