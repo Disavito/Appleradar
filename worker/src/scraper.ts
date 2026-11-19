@@ -45,9 +45,16 @@ export class ScraperService {
       viewport: { width: 1366, height: 768 }
     });
 
-    if (process.env.FB_COOKIES) {
-      try {
-        let cookies = [];
+    // Cargar cookies de Facebook (desde FB_COOKIES o desde fb_cookies.json)
+    try {
+      let cookies: any[] = [];
+      const fs = require('fs');
+      const path = require('path');
+      const localCookieFile = path.resolve(process.cwd(), 'fb_cookies.json');
+
+      if (fs.existsSync(localCookieFile)) {
+        cookies = JSON.parse(fs.readFileSync(localCookieFile, 'utf8'));
+      } else if (process.env.FB_COOKIES) {
         if (process.env.FB_COOKIES.trim().startsWith('[')) {
           cookies = JSON.parse(process.env.FB_COOKIES);
         } else {
@@ -64,11 +71,14 @@ export class ScraperService {
             }
           }
         }
-        await context.addCookies(cookies);
-        console.log(`🍪 ${cookies.length} cookies de sesión inyectadas exitosamente.`);
-      } catch (e) {
-        console.warn('Advertencia parseando FB_COOKIES:', e);
       }
+
+      if (cookies.length > 0) {
+        await context.addCookies(cookies);
+        console.log(`🍪 ${cookies.length} cookies de sesión de Facebook inyectadas.`);
+      }
+    } catch (e) {
+      console.warn('Advertencia inyectando cookies:', e);
     }
 
     return context;
