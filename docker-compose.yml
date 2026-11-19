@@ -18,6 +18,9 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - FIREBASE_SERVICE_ACCOUNT=${FIREBASE_SERVICE_ACCOUNT}
       - FIRESTORE_COLLECTION=listings
+      - FB_COOKIES=${FB_COOKIES}
+      - FB_EMAIL=${FB_EMAIL}
+      - FB_PASSWORD=${FB_PASSWORD}
       - CRON_SCHEDULE=0 */3 * * *
     # Límites prudentes de recursos (tu VPS tiene 24GB RAM y 8 vCPUs)
     deploy:
