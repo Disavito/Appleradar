@@ -13,9 +13,7 @@ export class ScraperService {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
-        '--disable-blink-features=AutomationControlled',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process'
+        '--disable-blink-features=AutomationControlled'
       ]
     };
 
@@ -27,7 +25,7 @@ export class ScraperService {
       };
       console.log(`🌐 Usando proxy configurado: ${CONFIG.proxyServer}`);
     } else {
-      console.log('ℹ️ Modo directo (sin proxy). Aplicando camuflaje de navegador y headers realistas.');
+      console.log('ℹ️ Modo directo (sin proxy).');
     }
 
     this.browser = await chromium.launch(launchOptions);
@@ -44,39 +42,22 @@ export class ScraperService {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       locale: 'es-PE',
       timezoneId: 'America/Lima',
-      viewport: { width: 1366, height: 768 },
-      deviceScaleFactor: 1,
-      hasTouch: false,
-      isMobile: false,
-      extraHTTPHeaders: {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'es-PE,es-419;q=0.9,es;q=0.8,en;q=0.7',
-        'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1'
-      }
+      viewport: { width: 1366, height: 768 }
     });
 
-    // Si el usuario configuró cookies de Facebook, inyectarlas
     if (process.env.FB_COOKIES) {
       try {
         let cookies = [];
         if (process.env.FB_COOKIES.trim().startsWith('[')) {
           cookies = JSON.parse(process.env.FB_COOKIES);
         } else {
-          // Formato c_user=xxxx; xs=yyyy
           const parts = process.env.FB_COOKIES.split(';');
           for (const part of parts) {
             const [name, val] = part.trim().split('=');
             if (name && val) {
               cookies.push({
-                name,
-                value: val,
+                name: name.trim(),
+                value: val.trim(),
                 domain: '.facebook.com',
                 path: '/'
               });
@@ -84,7 +65,7 @@ export class ScraperService {
           }
         }
         await context.addCookies(cookies);
-        console.log('🍪 Sesión de Facebook inyectada exitosamente.');
+        console.log(`🍪 ${cookies.length} cookies de sesión inyectadas exitosamente.`);
       } catch (e) {
         console.warn('Advertencia parseando FB_COOKIES:', e);
       }
@@ -96,7 +77,6 @@ export class ScraperService {
   async setupResourceBlocking(page: Page) {
     await page.route('**/*', (route) => {
       const resourceType = route.request().resourceType();
-      // Bloquear imágenes, fuentes y medios para ahorrar ancho de banda y acelerar carga
       if (['image', 'media', 'font'].includes(resourceType)) {
         return route.abort();
       }
@@ -114,19 +94,27 @@ export class ScraperService {
     const searchUrl = `https://www.facebook.com/marketplace/${cityPath}/search?query=${encodedTerm}`;
     console.log(`🔎 Explorando búsqueda: ${cityName} -> "${searchTerm}"`);
 
-    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 50000 });
-    await page.waitForTimeout(4000);
+    await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 45000 }).catch(async () => {
+      await page.waitForLoadState('domcontentloaded');
+    });
 
-    // Si aparece un popup de cookies o login de Facebook, intentar cerrarlo si es posible
-    try {
-      const closeButtons = await page.$$('div[aria-label="Cerrar"], div[aria-label="Close"], [aria-label="Decline optional cookies"]');
-      for (const btn of closeButtons) {
-        await btn.click().catch(() => {});
-      }
-    } catch (_) {}
+    // Diagnóstico del estado de la página
+    const pageState = await page.evaluate(() => {
+      const title = document.title;
+      const bodyText = (document.body.innerText || '').slice(0, 300);
+      const isLoginWall = bodyText.includes('iniciar sesión') || bodyText.includes('Log in') || bodyText.includes('Crea una cuenta');
+      const isBlocked = bodyText.includes('no está disponible') || bodyText.includes('not available');
+      const totalLinks = document.querySelectorAll('a').length;
+      return { title, isLoginWall, isBlocked, totalLinks, sampleText: bodyText.slice(0, 150) };
+    });
 
-    await page.evaluate(() => window.scrollBy(0, 1000));
-    await page.waitForTimeout(2500);
+    if (pageState.isLoginWall || pageState.isBlocked) {
+      console.log(`🔒 Facebook requiere autenticación en esta búsqueda (${cityName}): ${pageState.isLoginWall ? 'Muro de Login' : 'Contenido no disponible'}`);
+    }
+
+    // Scroll para activar render de React
+    await page.evaluate(() => window.scrollBy(0, 1200));
+    await page.waitForTimeout(2000);
 
     const rawItems = await page.evaluate(
       ({ cityName, searchTerm }) => {
@@ -140,6 +128,7 @@ export class ScraperService {
           scrapedAt: string;
         }> = [];
 
+        // Buscar enlaces que apunten a un item de Marketplace
         const links = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]'));
         const seenIds = new Set<string>();
 
@@ -182,7 +171,7 @@ export class ScraperService {
       { cityName, searchTerm }
     );
 
-    console.log(`📌 Encontrados ${rawItems.length} anuncios para "${searchTerm}" en ${cityName}`);
+    console.log(`📌 Encontrados ${rawItems.length} anuncios para "${searchTerm}" en ${cityName} (Links evaluados en DOM: ${pageState.totalLinks})`);
     return rawItems;
   }
 
