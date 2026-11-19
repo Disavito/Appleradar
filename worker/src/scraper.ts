@@ -45,16 +45,24 @@ export class ScraperService {
       viewport: { width: 1366, height: 768 }
     });
 
-    // Cargar cookies de Facebook (desde FB_COOKIES o desde fb_cookies.json)
     try {
       let cookies: any[] = [];
       const fs = require('fs');
       const path = require('path');
-      const localCookieFile = path.resolve(process.cwd(), 'fb_cookies.json');
+      const candidates = [
+        path.resolve(process.cwd(), 'fb_cookies.json'),
+        path.resolve(__dirname, '../fb_cookies.json'),
+        '/app/fb_cookies.json'
+      ];
 
-      if (fs.existsSync(localCookieFile)) {
-        cookies = JSON.parse(fs.readFileSync(localCookieFile, 'utf8'));
-      } else if (process.env.FB_COOKIES) {
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          cookies = JSON.parse(fs.readFileSync(p, 'utf8'));
+          break;
+        }
+      }
+
+      if (cookies.length === 0 && process.env.FB_COOKIES) {
         if (process.env.FB_COOKIES.trim().startsWith('[')) {
           cookies = JSON.parse(process.env.FB_COOKIES);
         } else {
@@ -107,30 +115,43 @@ export class ScraperService {
     await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForTimeout(3000);
 
-    // Auto-login con 1 clic si aparece el botón "Continuar como Diego Vito"
-    try {
-      const continueBtn = await page.$('div[role="button"]:has-text("Continuar"), button:has-text("Continuar"), a:has-text("Continuar")');
-      if (continueBtn) {
-        console.log('👆 Detectado botón "Continuar como usuario". Haciendo clic automático...');
-        await continueBtn.click();
+    // Si aparece la tarjeta de perfil "Diego Vito - Continuar", hacer clic y navegar a destino
+    const isProfilePrompt = await page.evaluate(() => {
+      return document.body.innerText.includes('Continuar') && document.body.innerText.includes('Diego Vito');
+    });
+
+    if (isProfilePrompt) {
+      console.log('👆 Detectado perfil guardado. Desbloqueando sesión...');
+      try {
+        // En Facebook esta tarjeta suele ser un botón o link general
+        await page.locator('text=Continuar').first().click({ timeout: 5000 }).catch(async () => {
+          await page.click('[role="button"]').catch(() => {});
+        });
         await page.waitForTimeout(4000);
+
+        // Si aún no redirigió a la búsqueda tras el clic, volver a cargar la URL de marketplace
+        if (!page.url().includes('/marketplace/')) {
+          console.log('🔄 Re-ingresando a Marketplace post-continuar...');
+          await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
+          await page.waitForTimeout(3000);
+        }
+      } catch (err) {
+        console.warn('Detalle al dar clic en continuar:', err);
       }
-    } catch (_) {}
+    }
 
     // Diagnóstico exacto del HTML que recibe el navegador
     const debugInfo = await page.evaluate(() => {
-      const allLinks = Array.from(document.querySelectorAll('a')).map(a => a.href);
-      const sampleLinks = allLinks.slice(0, 10);
       const title = document.title;
       const snippet = (document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 200);
-      return { title, sampleLinks, snippet, totalLinks: allLinks.length };
+      return { title, snippet };
     });
 
     console.log(`📄 Título de página: "${debugInfo.title}"`);
     console.log(`📝 Texto visible en pantalla: "${debugInfo.snippet}"`);
 
-    // Scroll para forzar carga de resultados
-    await page.evaluate(() => window.scrollBy(0, 1200));
+    // Scroll para forzar render de React en Marketplace
+    await page.evaluate(() => window.scrollBy(0, 1500));
     await page.waitForTimeout(2500);
 
     const rawItems = await page.evaluate(
