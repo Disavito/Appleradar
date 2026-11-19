@@ -204,46 +204,49 @@ export function App() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
+              type="button"
               onClick={() => setIsSettingsOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16161a] hover:bg-[#1e1e24] text-zinc-100 border border-white/[0.08] font-medium rounded-lg text-xs transition"
+              className="inline-flex items-center gap-2 h-9 px-3.5 bg-[#16161b] hover:bg-[#1e1e25] text-white border border-white/[0.1] font-medium rounded-lg text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60"
               title="Elegir ciudades del Perú, palabras clave y modelo Gemini"
             >
-              <Settings className="w-3.5 h-3.5 text-zinc-300" />
+              <Settings className="w-4 h-4 text-zinc-300" />
               <span>Configurar Radar</span>
             </button>
 
             {pushStatus !== 'granted' ? (
               <button
+                type="button"
                 onClick={handleEnablePush}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded-lg text-xs transition"
+                className="inline-flex items-center gap-2 h-9 px-3.5 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded-lg text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
                 title="Activar notificaciones push en esta pantalla o celular"
               >
-                <Bell className="w-3.5 h-3.5" />
+                <Bell className="w-4 h-4" />
                 <span>Activar Push</span>
               </button>
             ) : (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-medium rounded-lg text-xs">
-                <BellRing className="w-3.5 h-3.5" />
+              <div className="inline-flex items-center gap-1.5 h-9 px-3.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-medium rounded-lg text-[13px]">
+                <BellRing className="w-4 h-4" />
                 <span>Push Activo</span>
               </div>
             )}
 
-            <div className="hidden sm:flex items-center gap-2 text-xs bg-[#111114] border border-white/[0.07] px-2.5 py-1.5 rounded-lg">
+            <div className="hidden sm:flex items-center gap-2 h-9 text-xs bg-[#111114] border border-white/[0.08] px-3 rounded-lg">
               <span
                 className={`inline-block rounded-full h-2 w-2 ${
                   isConnected ? 'bg-emerald-500' : 'bg-amber-500'
                 }`}
               />
-              <span className="text-zinc-400 font-medium">
+              <span className="text-zinc-300 font-medium">
                 {isConnected ? 'En vivo' : 'Preview'}
               </span>
             </div>
 
             <button
+              type="button"
               onClick={() => window.location.reload()}
-              className="p-1.5 text-zinc-400 hover:text-white bg-[#16161a] hover:bg-[#1e1e24] border border-white/[0.08] rounded-lg transition"
+              className="h-9 w-9 inline-flex items-center justify-center text-zinc-300 hover:text-white bg-[#16161b] hover:bg-[#1e1e25] border border-white/[0.1] rounded-lg transition"
               title="Refrescar vista"
               aria-label="Refrescar vista"
             >

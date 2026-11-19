@@ -31,75 +31,73 @@ export const MetricsCards: React.FC<Props> = ({ listings, selectedChip, onSelect
   return (
     <section aria-label="Resumen de mercado" className="space-y-4">
       {/* KPI Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-[#111114] border border-white/[0.07] rounded-xl px-4 py-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
-            Equipos Monitoreados
-          </p>
-          <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-2xl font-semibold tracking-tight text-white font-mono-nums">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-[#111114] border border-white/[0.08] rounded-xl px-4 py-4">
+          <p className="text-xs font-medium text-zinc-400">Equipos Monitoreados</p>
+          <div className="mt-2 flex items-baseline justify-between gap-2">
+            <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-white font-mono-nums">
               {listings.length}
             </span>
-            <span className="text-[11px] text-zinc-500">
-              {uniqueCities || 1} {uniqueCities === 1 ? 'zona' : 'zonas'} en Perú
+            <span className="text-xs text-zinc-400">
+              {uniqueCities || 1} {uniqueCities === 1 ? 'zona' : 'zonas'}
             </span>
           </div>
         </div>
 
-        <div className="bg-[#111114] border border-white/[0.07] rounded-xl px-4 py-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
-            Nuevos Hoy
-          </p>
-          <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-2xl font-semibold tracking-tight text-emerald-400 font-mono-nums">
+        <div className="bg-[#111114] border border-white/[0.08] rounded-xl px-4 py-4">
+          <p className="text-xs font-medium text-zinc-400">Nuevos Hoy</p>
+          <div className="mt-2 flex items-baseline justify-between gap-2">
+            <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-emerald-400 font-mono-nums">
               +{newToday}
             </span>
-            <span className="text-[11px] text-zinc-500">últimas 24h</span>
+            <span className="text-xs text-zinc-400">últimas 24h</span>
           </div>
         </div>
 
-        <div className="bg-[#111114] border border-white/[0.07] rounded-xl px-4 py-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
-            Bajadas de Precio
-          </p>
-          <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-2xl font-semibold tracking-tight text-amber-400 font-mono-nums">
+        <div className="bg-[#111114] border border-white/[0.08] rounded-xl px-4 py-4">
+          <p className="text-xs font-medium text-zinc-400">Bajadas de Precio</p>
+          <div className="mt-2 flex items-baseline justify-between gap-2">
+            <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-amber-400 font-mono-nums">
               {priceDrops}
             </span>
-            <span className="text-[11px] text-zinc-500">con descuento</span>
+            <span className="text-xs text-zinc-400">descuentos</span>
           </div>
         </div>
 
-        <div className="bg-[#111114] border border-white/[0.07] rounded-xl px-4 py-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
-            Precios Verificados
-          </p>
-          <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-2xl font-semibold tracking-tight text-white font-mono-nums">
+        <div className="bg-[#111114] border border-white/[0.08] rounded-xl px-4 py-4">
+          <p className="text-xs font-medium text-zinc-400">Precios Verificados</p>
+          <div className="mt-2 flex items-baseline justify-between gap-2">
+            <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-white font-mono-nums">
               {validListings.length}
             </span>
-            <span className="text-[11px] text-zinc-500">sin gancho S/ 1</span>
+            <span className="text-xs text-zinc-400">sin gancho</span>
           </div>
         </div>
       </div>
 
-      {/* Apple Silicon Generation Benchmark Strip (Interactive) */}
-      <div className="bg-[#111114] border border-white/[0.07] rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-            Referencia por Generación Apple Silicon
-          </h2>
+      {/* Apple Silicon Generation Benchmark Strip */}
+      <div className="bg-[#111114] border border-white/[0.08] rounded-xl p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3 mb-3.5">
+          <div>
+            <h2 className="text-sm font-semibold text-white tracking-tight">
+              Precios por Generación Apple Silicon
+            </h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Haz clic en un chip para filtrar el listado inferior
+            </p>
+          </div>
           {selectedChip !== 'ALL' && (
             <button
+              type="button"
               onClick={() => onSelectChip('ALL')}
-              className="text-[11px] text-sky-400 hover:text-sky-300 transition"
+              className="h-8 px-3 rounded-lg text-xs font-medium text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60"
             >
-              Mostrar todos los chips
+              Ver todos
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {chipStats.map(({ chip, count, min, avg }) => {
             const isSelected = selectedChip === chip;
             return (
@@ -107,41 +105,41 @@ export const MetricsCards: React.FC<Props> = ({ listings, selectedChip, onSelect
                 key={chip}
                 type="button"
                 onClick={() => onSelectChip(isSelected ? 'ALL' : chip)}
-                className={`text-left rounded-lg p-3 border transition-all ${
+                className={`text-left rounded-xl p-3.5 border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 ${
                   isSelected
-                    ? 'bg-sky-500/10 border-sky-400/50 ring-1 ring-sky-400/20'
-                    : 'bg-[#16161a] border-white/[0.06] hover:border-white/[0.15] hover:bg-[#1a1a1f]'
+                    ? 'bg-sky-500/10 border-sky-400/60'
+                    : 'bg-[#16161b] border-white/[0.07] hover:border-white/[0.18] hover:bg-[#1b1b21]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2.5">
                   <span
-                    className={`text-xs font-semibold tracking-tight ${
+                    className={`text-sm font-semibold tracking-tight ${
                       isSelected ? 'text-sky-300' : 'text-white'
                     }`}
                   >
                     Apple {chip}
                   </span>
-                  <span className="text-[11px] text-zinc-500 font-mono-nums">{count}</span>
+                  <span className="text-xs text-zinc-400 font-mono-nums">{count} disp.</span>
                 </div>
 
                 {min !== null ? (
-                  <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-white/[0.05]">
+                  <div className="flex items-baseline justify-between gap-2 pt-2 border-t border-white/[0.06]">
                     <div>
-                      <span className="text-[10px] text-zinc-500 block">Mínimo</span>
+                      <span className="text-[11px] text-zinc-400 block">Mínimo</span>
                       <span className="text-sm font-semibold text-emerald-400 font-mono-nums">
                         S/ {min.toLocaleString('es-PE')}
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] text-zinc-500 block">Promedio</span>
-                      <span className="text-xs text-zinc-300 font-mono-nums">
+                      <span className="text-[11px] text-zinc-400 block">Promedio</span>
+                      <span className="text-xs font-medium text-zinc-200 font-mono-nums">
                         S/ {avg?.toLocaleString('es-PE')}
                       </span>
                     </div>
                   </div>
                 ) : (
-                  <div className="pt-2 text-[11px] text-zinc-600 border-t border-white/[0.05]">
-                    Sin registros
+                  <div className="pt-2.5 text-xs text-zinc-500 border-t border-white/[0.06]">
+                    Sin registros aún
                   </div>
                 )}
               </button>
