@@ -10,34 +10,44 @@ export function initFirebase() {
   if (admin.apps.length === 0) {
     let credential;
 
-    // 1. Prioridad: Buscar serviceAccountKey.json físico copiado en la app
-    const candidates = [
-      path.resolve(process.cwd(), 'serviceAccountKey.json'),
-      path.resolve(__dirname, '../serviceAccountKey.json'),
-      path.resolve('/app/serviceAccountKey.json')
-    ];
-
-    for (const p of candidates) {
-      if (fs.existsSync(p)) {
-        try {
-          const keyData = JSON.parse(fs.readFileSync(p, 'utf8'));
-          credential = admin.credential.cert(keyData);
-          console.log(`🔑 Clave Firebase cargada exitosamente desde: ${p}`);
-          break;
-        } catch (e) {
-          console.warn(`Error leyendo archivo de clave en ${p}:`, e);
+    // 1. Prioridad: Variable de entorno FIREBASE_SERVICE_ACCOUNT (Coolify / Docker)
+    if (CONFIG.firebaseServiceAccount && CONFIG.firebaseServiceAccount.trim().length > 10) {
+      try {
+        let raw = CONFIG.firebaseServiceAccount.trim();
+        // Remover comillas envolventes si Coolify/Docker las añadió
+        if ((raw.startsWith("'") && raw.endsWith("'")) || (raw.startsWith('"') && raw.endsWith('"'))) {
+          raw = raw.slice(1, -1);
         }
+        const creds = JSON.parse(raw);
+        if (creds.private_key && typeof creds.private_key === 'string') {
+          creds.private_key = creds.private_key.replace(/\\n/g, '\n');
+        }
+        credential = admin.credential.cert(creds);
+        console.log(`🔑 Clave Firebase cargada desde variable FIREBASE_SERVICE_ACCOUNT (key_id: ${creds.private_key_id}).`);
+      } catch (e) {
+        console.warn('Error parseando FIREBASE_SERVICE_ACCOUNT env:', e);
       }
     }
 
-    // 2. Si no se cargó por archivo, verificar variable de entorno
-    if (!credential && CONFIG.firebaseServiceAccount && CONFIG.firebaseServiceAccount.trim().startsWith('{')) {
-      try {
-        const creds = JSON.parse(CONFIG.firebaseServiceAccount);
-        credential = admin.credential.cert(creds);
-        console.log('🔑 Clave Firebase cargada exitosamente desde FIREBASE_SERVICE_ACCOUNT (env).');
-      } catch (e) {
-        console.warn('Error parseando FIREBASE_SERVICE_ACCOUNT env:', e);
+    // 2. Fallback: Buscar serviceAccountKey.json físico local
+    if (!credential) {
+      const candidates = [
+        path.resolve(process.cwd(), 'serviceAccountKey.json'),
+        path.resolve(__dirname, '../serviceAccountKey.json'),
+        path.resolve('/app/serviceAccountKey.json')
+      ];
+
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          try {
+            const keyData = JSON.parse(fs.readFileSync(p, 'utf8'));
+            credential = admin.credential.cert(keyData);
+            console.log(`🔑 Clave Firebase cargada desde archivo: ${p} (key_id: ${keyData.private_key_id})`);
+            break;
+          } catch (e) {
+            console.warn(`Error leyendo archivo de clave en ${p}:`, e);
+          }
+        }
       }
     }
 
