@@ -151,9 +151,19 @@ export class ScraperService {
       }
     }
 
-    // Scroll para forzar render de React en Marketplace
-    await page.evaluate(() => window.scrollBy(0, 1500));
-    await page.waitForTimeout(2500);
+    // Scroll progresivo (hasta 4 tandas) para cargar más de los primeros 24-33 resultados
+    let previousCount = 0;
+    for (let s = 0; s < 4; s++) {
+      await page.evaluate(() => window.scrollBy(0, 2400));
+      await page.waitForTimeout(1800);
+      const currentCount = await page.evaluate(
+        () => document.querySelectorAll('a[href*="/marketplace/item/"]').length
+      );
+      if (currentCount <= previousCount && s >= 1) {
+        break; // No cargaron más anuncios
+      }
+      previousCount = currentCount;
+    }
 
     const rawItems = await page.evaluate(
       ({ cityName, searchTerm, category }) => {
@@ -215,6 +225,25 @@ export class ScraperService {
     return rawItems;
   }
 
+  private parsePublishedTextToIso(publishedText: string): string {
+    const now = Date.now();
+    const txt = (publishedText || '').toLowerCase();
+    if (!txt) return new Date(now).toISOString();
+
+    const numMatch = txt.match(/(\d+)/);
+    const num = numMatch ? parseInt(numMatch[1], 10) : 1;
+
+    let offsetMs = 0;
+    if (/minuto|minute|min\b/.test(txt)) offsetMs = num * 60 * 1000;
+    else if (/hora|hour|hr\b/.test(txt)) offsetMs = num * 3600 * 1000;
+    else if (/día|dias|días|day/.test(txt)) offsetMs = num * 86400 * 1000;
+    else if (/semana|week/.test(txt)) offsetMs = num * 7 * 86400 * 1000;
+    else if (/mes|month/.test(txt)) offsetMs = num * 30 * 86400 * 1000;
+    else if (/año|year/.test(txt)) offsetMs = num * 365 * 86400 * 1000;
+
+    return new Date(now - offsetMs).toISOString();
+  }
+
   async scrapeItemDetails(page: Page, rawListing: RawListing): Promise<DetailedListing> {
     console.log(`📄 Abriendo anuncio individual: ${rawListing.listingId} (${rawListing.itemUrl})`);
 
@@ -224,14 +253,24 @@ export class ScraperService {
     const details = await page.evaluate(() => {
       let description = '';
       let locationText = '';
+      let publishedText = '';
 
       const bodyText = document.body.innerText || '';
       const isSold =
         /Vendido|Sold|Este anuncio ya no está disponible|no está disponible/i.test(bodyText.slice(0, 600));
 
+      // Buscar fecha de publicación ("Publicado hace...", "Listed ... ago")
+      const pubMatch = bodyText.match(/(Publicado hace [^\n·]+|Listed [^\n·]+ ago|Hace \d+ [^\n·]+)/i);
+      if (pubMatch) {
+        publishedText = pubMatch[1].trim();
+      }
+
       const spans = Array.from(document.querySelectorAll('span'));
       for (const span of spans) {
         const txt = (span.textContent || '').trim();
+        if (!publishedText && /^(Publicado|Listed)\b/i.test(txt) && txt.length < 60) {
+          publishedText = txt;
+        }
         if (/Ubicación|Location/i.test(txt)) {
           const nextEl = span.parentElement?.nextElementSibling || span.nextElementSibling;
           if (nextEl) locationText = (nextEl.textContent || '').trim();
@@ -256,6 +295,7 @@ export class ScraperService {
       return {
         description: description || 'Sin descripción detallada disponible en el anuncio.',
         locationText: locationText || '',
+        publishedText,
         isSold
       };
     });
@@ -264,6 +304,8 @@ export class ScraperService {
       ...rawListing,
       description: details.description,
       locationText: details.locationText || rawListing.city,
+      publishedText: details.publishedText || '',
+      publishedAtEstimated: this.parsePublishedTextToIso(details.publishedText),
       isSold: details.isSold
     };
   }

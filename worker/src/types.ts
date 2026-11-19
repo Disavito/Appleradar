@@ -14,6 +14,7 @@ export interface ScraperSettings {
   locations: LocationConfig[];
   searchTerms: SearchTermConfig[];
   geminiModel: string;
+  triggerNow?: boolean;
   updatedAt?: string;
 }
 
@@ -31,12 +32,34 @@ export interface RawListing {
 export interface DetailedListing extends RawListing {
   description: string;
   locationText: string;
+  publishedText: string;
+  publishedAtEstimated: string;
   isSold: boolean;
 }
 
 export interface ExtractedMacSpecs {
-  categoria: 'MacBook Pro' | 'MacBook Air' | 'MacBook' | 'iPad' | 'Mac Mini' | 'iMac' | 'Otro';
-  chip: 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'A-Series' | 'Intel' | 'Desconocido';
+  categoria:
+    | 'MacBook Pro'
+    | 'MacBook Air'
+    | 'MacBook'
+    | 'Mac Mini'
+    | 'iMac'
+    | 'Mac Studio'
+    | 'iPad'
+    | 'iPhone'
+    | 'Otro';
+  chip:
+    | 'M1'
+    | 'M2'
+    | 'M3'
+    | 'M4'
+    | 'M5'
+    | 'Intel i9'
+    | 'Intel i7'
+    | 'Intel i5'
+    | 'A-Series'
+    | 'Desconocido';
+  chip_variante: 'Base' | 'Pro' | 'Max' | 'Ultra' | 'N/A';
   pulgadas: number | null;
   ram_gb: number | null;
   almacenamiento_gb: number | null;
@@ -44,6 +67,7 @@ export interface ExtractedMacSpecs {
   incluye_cargador: boolean;
   ciclos_bateria: number | null;
   porcentaje_bateria?: number | null;
+  condicion_estetica: 'Sellado' | 'Como nuevo' | 'Buen estado' | 'Con detalle' | 'No indica';
   moneda: 'PEN' | 'USD';
   precio_normalizado_pen: number;
   es_precio_gancho: boolean;

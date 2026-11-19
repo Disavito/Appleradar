@@ -22,9 +22,19 @@ export interface ListingItem {
   id: string;
   listingId: string;
   title: string;
-  categoria?: 'MacBook Pro' | 'MacBook Air' | 'MacBook' | 'iPad' | 'Mac Mini' | 'iMac' | 'iPhone' | 'Otro';
+  categoria?:
+    | 'MacBook Pro'
+    | 'MacBook Air'
+    | 'MacBook'
+    | 'Mac Mini'
+    | 'iMac'
+    | 'Mac Studio'
+    | 'iPad'
+    | 'iPhone'
+    | 'Otro';
   category?: string;
-  chip: 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'A-Series' | 'Intel' | 'Desconocido';
+  chip: string;
+  chip_variante?: 'Base' | 'Pro' | 'Max' | 'Ultra' | 'N/A';
   pulgadas: number | null;
   ram_gb: number | null;
   almacenamiento_gb: number | null;
@@ -32,6 +42,7 @@ export interface ListingItem {
   incluye_cargador: boolean;
   ciclos_bateria: number | null;
   porcentaje_bateria?: number | null;
+  condicion_estetica?: 'Sellado' | 'Como nuevo' | 'Buen estado' | 'Con detalle' | 'No indica';
   moneda: 'PEN' | 'USD';
   precio_normalizado_pen: number;
   es_precio_gancho: boolean;
@@ -47,6 +58,8 @@ export interface ListingItem {
   analyzedWithGemini?: boolean;
   description?: string;
   locationText?: string;
+  publishedText?: string;
+  publishedAtEstimated?: string;
   itemUrl: string;
   scrapedAt: string;
   lastSeenAt?: string;
@@ -57,18 +70,22 @@ export interface ScrapedProduct {
   id: string;
   listingId: string;
   title: string;
-  family: 'MacBook' | 'iPad' | 'iPhone' | 'Neo' | 'Mac' | 'Otro';
+  family: 'MacBook' | 'Mac Mini' | 'iMac' | 'Mac Studio' | 'iPad' | 'iPhone' | 'Neo' | 'Otro';
   line: 'Pro' | 'Air' | 'Mini' | 'Max' | 'Standard';
   chip: string;
+  chipVariant: string;
+  chipDisplay: string;
   storageGb: number | null;
   ramGb: number | null;
   batteryCycles: number | null;
   batteryPct: number | null;
+  condition: string;
   includes: string[];
   city: string;
   district: string;
   locationFormatted: string;
   publishedAt: string;
+  publishedText: string;
   pricePen: number;
   currency: 'PEN' | 'USD';
   price_corrected: boolean;
@@ -86,10 +103,12 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
   const titleLower = (item.title || '').toLowerCase();
 
   let family: ScrapedProduct['family'] = 'MacBook';
-  if (cat.includes('iPad') || titleLower.includes('ipad')) family = 'iPad';
+  if (cat === 'Mac Mini' || titleLower.includes('mac mini')) family = 'Mac Mini';
+  else if (cat === 'iMac' || titleLower.includes('imac')) family = 'iMac';
+  else if (cat === 'Mac Studio' || titleLower.includes('mac studio')) family = 'Mac Studio';
+  else if (cat.includes('iPad') || titleLower.includes('ipad')) family = 'iPad';
   else if (cat.includes('iPhone') || titleLower.includes('iphone')) family = 'iPhone';
   else if (titleLower.includes('neo')) family = 'Neo';
-  else if (cat.includes('Mac Mini') || cat.includes('iMac')) family = 'Mac';
   else if (cat === 'Otro' && !titleLower.includes('macbook')) family = 'Otro';
 
   let line: ScrapedProduct['line'] = 'Standard';
@@ -98,6 +117,12 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
   else if (titleLower.includes('mini')) line = 'Mini';
   else if (titleLower.includes('max')) line = 'Max';
 
+  const chip = item.chip || 'Desconocido';
+  const chipVariant = item.chip_variante && item.chip_variante !== 'N/A' && item.chip_variante !== 'Base'
+    ? item.chip_variante
+    : '';
+  const chipDisplay = chipVariant ? `${chip} ${chipVariant}` : chip;
+
   const includes: string[] = [];
   if (item.incluye_caja) includes.push('Caja');
   if (item.incluye_cargador) includes.push('Cargador');
@@ -105,7 +130,6 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
 
   const city = item.city || 'Perú';
   let district = (item.distrito_ciudad || '').trim();
-  // Evitar repetir "Lima, Lima" o "Arequipa, Arequipa"
   if (district.toLowerCase() === city.toLowerCase()) {
     district = '';
   } else if (district.toLowerCase().endsWith(`, ${city.toLowerCase()}`)) {
@@ -122,16 +146,20 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
     title: item.title,
     family,
     line,
-    chip: item.chip || 'Desconocido',
+    chip,
+    chipVariant: item.chip_variante || 'Base',
+    chipDisplay,
     storageGb: item.almacenamiento_gb ?? null,
     ramGb: item.ram_gb ?? null,
     batteryCycles: item.ciclos_bateria ?? null,
     batteryPct: item.porcentaje_bateria ?? null,
+    condition: item.condicion_estetica || 'No indica',
     includes,
     city,
     district,
     locationFormatted,
-    publishedAt: item.scrapedAt || new Date().toISOString(),
+    publishedAt: item.publishedAtEstimated || item.scrapedAt || new Date().toISOString(),
+    publishedText: item.publishedText || '',
     pricePen: item.precio_normalizado_pen || 0,
     currency: item.moneda || 'PEN',
     price_corrected: isCorrected,

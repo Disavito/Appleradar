@@ -42,6 +42,11 @@ export const marketColumns: ColumnDef<ScrapedProduct>[] = [
                 {p.line}
               </span>
             )}
+            {(p.condition === 'Sellado' || p.condition === 'Como nuevo') && (
+              <span className="px-2 py-0.5 text-[11px] font-medium rounded-md bg-emerald-500/15 text-emerald-300">
+                {p.condition}
+              </span>
+            )}
             {p.status === 'sold' && (
               <span className="px-2 py-0.5 text-[11px] font-semibold rounded-md bg-red-500/20 text-red-300">
                 Vendido
@@ -56,10 +61,10 @@ export const marketColumns: ColumnDef<ScrapedProduct>[] = [
     }
   },
   {
-    accessorKey: 'chip',
+    accessorKey: 'chipDisplay',
     header: 'Chip',
     cell: ({ row }) => {
-      const chip = row.original.chip;
+      const chip = row.original.chipDisplay;
       const isAppleSilicon = /^M[1-5]/.test(chip);
       return (
         <span
@@ -165,7 +170,10 @@ export const marketColumns: ColumnDef<ScrapedProduct>[] = [
       </button>
     ),
     cell: ({ row }) => (
-      <span className="text-xs text-zinc-400 whitespace-nowrap font-mono-nums">
+      <span
+        className="text-xs text-zinc-300 whitespace-nowrap font-mono-nums"
+        title={row.original.publishedText || 'Fecha detectada por radar'}
+      >
         {formatRelativeTime(row.original.publishedAt)}
       </span>
     )

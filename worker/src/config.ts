@@ -31,11 +31,19 @@ export const DEFAULT_SCRAPER_SETTINGS: ScraperSettings = {
     { term: 'MacBook Air M3', category: 'MacBook Air', enabled: true },
     { term: 'MacBook Air M4', category: 'MacBook Air', enabled: false },
     { term: 'MacBook Neo', category: 'MacBook', enabled: false },
+    { term: 'MacBook Pro i9', category: 'MacBook Pro', enabled: false },
+    { term: 'Mac Mini M1', category: 'Mac Mini', enabled: false },
+    { term: 'Mac Mini M2', category: 'Mac Mini', enabled: false },
+    { term: 'Mac Mini M4', category: 'Mac Mini', enabled: false },
+    { term: 'iMac M1', category: 'iMac', enabled: false },
+    { term: 'iMac M3', category: 'iMac', enabled: false },
     { term: 'iPad Pro M1', category: 'iPad', enabled: false },
     { term: 'iPad Pro M2', category: 'iPad', enabled: false },
     { term: 'iPad Pro M4', category: 'iPad', enabled: false },
     { term: 'iPad Air M1', category: 'iPad', enabled: false },
-    { term: 'iPad Air M2', category: 'iPad', enabled: false }
+    { term: 'iPad Air M2', category: 'iPad', enabled: false },
+    { term: 'iPhone 15 Pro', category: 'iPhone', enabled: false },
+    { term: 'iPhone 16 Pro', category: 'iPhone', enabled: false }
   ]
 };
 
