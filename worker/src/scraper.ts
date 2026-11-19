@@ -45,45 +45,52 @@ export class ScraperService {
       viewport: { width: 1366, height: 768 }
     });
 
+    // Cargar cookies de Facebook (prioridad: variable de entorno FB_COOKIES -> archivo fb_cookies.json)
     try {
       let cookies: any[] = [];
-      const fs = require('fs');
-      const path = require('path');
-      const candidates = [
-        path.resolve(process.cwd(), 'fb_cookies.json'),
-        path.resolve(__dirname, '../fb_cookies.json'),
-        '/app/fb_cookies.json'
-      ];
 
-      for (const p of candidates) {
-        if (fs.existsSync(p)) {
-          cookies = JSON.parse(fs.readFileSync(p, 'utf8'));
-          break;
-        }
-      }
-
-      if (cookies.length === 0 && process.env.FB_COOKIES) {
+      if (process.env.FB_COOKIES && process.env.FB_COOKIES.trim().length > 0) {
         if (process.env.FB_COOKIES.trim().startsWith('[')) {
           cookies = JSON.parse(process.env.FB_COOKIES);
         } else {
           const parts = process.env.FB_COOKIES.split(';');
           for (const part of parts) {
-            const [name, val] = part.trim().split('=');
-            if (name && val) {
-              cookies.push({
-                name: name.trim(),
-                value: val.trim(),
-                domain: '.facebook.com',
-                path: '/'
-              });
+            const eqIdx = part.indexOf('=');
+            if (eqIdx > 0) {
+              const name = part.slice(0, eqIdx).trim();
+              const val = part.slice(eqIdx + 1).trim();
+              if (name && val) {
+                cookies.push({
+                  name,
+                  value: val,
+                  domain: '.facebook.com',
+                  path: '/'
+                });
+              }
             }
+          }
+        }
+        console.log(`🍪 Cargadas ${cookies.length} cookies desde variable FB_COOKIES.`);
+      } else {
+        const fs = require('fs');
+        const path = require('path');
+        const candidates = [
+          path.resolve(process.cwd(), 'fb_cookies.json'),
+          path.resolve(__dirname, '../fb_cookies.json'),
+          '/app/fb_cookies.json'
+        ];
+
+        for (const p of candidates) {
+          if (fs.existsSync(p)) {
+            cookies = JSON.parse(fs.readFileSync(p, 'utf8'));
+            console.log(`🍪 Cargadas ${cookies.length} cookies desde archivo local ${p}.`);
+            break;
           }
         }
       }
 
       if (cookies.length > 0) {
         await context.addCookies(cookies);
-        console.log(`🍪 ${cookies.length} cookies de sesión de Facebook inyectadas.`);
       }
     } catch (e) {
       console.warn('Advertencia inyectando cookies:', e);
@@ -115,28 +122,31 @@ export class ScraperService {
     await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForTimeout(3000);
 
-    // Si aparece la tarjeta de perfil "Diego Vito - Continuar", hacer clic y navegar a destino
-    const isProfilePrompt = await page.evaluate(() => {
-      return document.body.innerText.includes('Continuar') && document.body.innerText.includes('Diego Vito');
+    // Si aparece pantalla de login o perfil guardado, intentar login si hay credenciales configuradas
+    const needsAuth = await page.evaluate(() => {
+      const txt = document.body.innerText || '';
+      return txt.includes('Iniciar sesión') || txt.includes('Log in') || txt.includes('Continuar');
     });
 
-    if (isProfilePrompt) {
-      console.log('👆 Detectado perfil guardado. Desbloqueando sesión...');
+    if (needsAuth && process.env.FB_EMAIL && process.env.FB_PASSWORD) {
+      console.log('🔐 Intentando inicio de sesión con FB_EMAIL y FB_PASSWORD...');
       try {
-        // En Facebook esta tarjeta suele ser un botón o link general
-        await page.locator('text=Continuar').first().click({ timeout: 5000 }).catch(async () => {
-          await page.click('[role="button"]').catch(() => {});
-        });
-        await page.waitForTimeout(4000);
-
-        // Si aún no redirigió a la búsqueda tras el clic, volver a cargar la URL de marketplace
-        if (!page.url().includes('/marketplace/')) {
-          console.log('🔄 Re-ingresando a Marketplace post-continuar...');
-          await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
-          await page.waitForTimeout(3000);
+        const passInput = await page.$('input[type="password"]');
+        if (passInput) {
+          const emailInput = await page.$('input[name="email"], input#email');
+          if (emailInput) {
+            await emailInput.fill(process.env.FB_EMAIL);
+          }
+          await passInput.fill(process.env.FB_PASSWORD);
+          await page.click('button[name="login"], button[type="submit"], div[role="button"]:has-text("Iniciar sesión")').catch(() => {});
+          await page.waitForTimeout(5000);
+          if (!page.url().includes('/marketplace/')) {
+            await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
+            await page.waitForTimeout(3000);
+          }
         }
       } catch (err) {
-        console.warn('Detalle al dar clic en continuar:', err);
+        console.warn('Detalle en login con contraseña:', err);
       }
     }
 
