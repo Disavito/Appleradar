@@ -2,8 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { db } from './firebase';
 import type { ListingItem } from './types';
-import { MetricsCards } from './components/MetricsCards';
-import { ListingsTable } from './components/ListingsTable';
+import { Dashboard } from './components/Dashboard';
 import { SettingsModal } from './components/SettingsModal';
 import { Radar, RefreshCw, Radio, Bell, BellRing, Settings } from 'lucide-react';
 import { registerServiceWorker, requestNotificationPermission, showPushNotification } from './notifications';
@@ -94,7 +93,6 @@ export function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [pushStatus, setPushStatus] = useState<NotificationPermission>('default');
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [selectedChip, setSelectedChip] = useState<string>('ALL');
 
   // Mapa en memoria para detectar cambios de precio o nuevas publicaciones en tiempo real
   const previousListingsRef = useRef<Map<string, number>>(new Map());
@@ -264,18 +262,7 @@ export function App() {
             <p className="text-xs font-medium">Cargando mercado en tiempo real...</p>
           </div>
         ) : (
-          <>
-            <MetricsCards
-              listings={listings}
-              selectedChip={selectedChip}
-              onSelectChip={setSelectedChip}
-            />
-            <ListingsTable
-              listings={listings}
-              selectedChip={selectedChip}
-              onSelectChip={setSelectedChip}
-            />
-          </>
+          <Dashboard listings={listings} />
         )}
       </main>
 

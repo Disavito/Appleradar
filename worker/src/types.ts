@@ -43,9 +43,11 @@ export interface ExtractedMacSpecs {
   incluye_caja: boolean;
   incluye_cargador: boolean;
   ciclos_bateria: number | null;
+  porcentaje_bateria?: number | null;
   moneda: 'PEN' | 'USD';
   precio_normalizado_pen: number;
   es_precio_gancho: boolean;
+  price_corrected?: boolean;
   distrito_ciudad: string;
   tags: string[];
 }

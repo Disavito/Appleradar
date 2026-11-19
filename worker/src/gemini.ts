@@ -34,9 +34,11 @@ function getGenerativeModel(modelName: string) {
           incluye_caja: { type: SchemaType.BOOLEAN },
           incluye_cargador: { type: SchemaType.BOOLEAN },
           ciclos_bateria: { type: SchemaType.INTEGER, nullable: true },
+          porcentaje_bateria: { type: SchemaType.INTEGER, nullable: true },
           moneda: { type: SchemaType.STRING, format: 'enum', enum: ['PEN', 'USD'] },
           precio_normalizado_pen: { type: SchemaType.NUMBER },
           es_precio_gancho: { type: SchemaType.BOOLEAN },
+          price_corrected: { type: SchemaType.BOOLEAN },
           distrito_ciudad: { type: SchemaType.STRING },
           tags: {
             type: SchemaType.ARRAY,
@@ -51,6 +53,7 @@ function getGenerativeModel(modelName: string) {
           'moneda',
           'precio_normalizado_pen',
           'es_precio_gancho',
+          'price_corrected',
           'distrito_ciudad',
           'tags'
         ]
@@ -84,12 +87,11 @@ OBJETIVOS:
 4. Memoria RAM en GB (ej: 8, 16, 18, 24, 32, 36, etc. o null).
 5. Almacenamiento SSD en GB (ej: 128, 256, 512, 1000 para 1TB, 2000 para 2TB o null).
 6. Indica si incluye caja original (true/false) y si incluye cargador (true/false).
-7. Ciclos de batería si se mencionan en número, de lo contrario null.
+7. Ciclos de batería si se mencionan en número, y porcentaje de salud de batería si se menciona (ej: 92), de lo contrario null.
 8. Moneda: 'PEN' o 'USD'. Si el precio original está en USD ($), conviértelo a Soles (tipo de cambio referencial ~3.75).
-9. Normaliza el precio final en Soles (PEN) como entero o decimal positivo.
-10. Determina si 'es_precio_gancho' (true si el precio publicado es absurdo como S/ 1, S/ 0, S/ 1234, o no tiene sentido real con el valor del equipo para obligar a preguntar por inbox).
-11. Distrito o zona específica donde se encuentra el vendedor (ej: "Miraflores, Lima", "Yanahuara, Arequipa", "Trujillo").
-12. Genera de 2 a 5 'tags' cortos y útiles en español (ej: ["M3 Pro", "Sellado", "Garantía Apple", "Batería 100%", "Touch Bar", "Apple Pencil"]).
+9. Si el PRECIO PUBLICADO es gancho (ej. S/ 1, S/ 0, S/ 123), busca el precio real dentro de la DESCRIPCIÓN o TÍTULO. Si lo encuentras, pon ese precio real en 'precio_normalizado_pen', pon 'es_precio_gancho: false' y 'price_corrected: true'. Si no hay precio real en ningún lado, pon 'es_precio_gancho: true' y 'price_corrected: false'.
+10. Distrito o zona específica donde se encuentra el vendedor (ej: "Miraflores", "Cayma", "Wanchaq").
+11. Genera de 2 a 5 'tags' cortos y útiles en español (ej: ["M3 Pro", "Sellado", "Garantía Apple", "Batería 100%"]).
 `;
 
   try {
@@ -110,9 +112,11 @@ OBJETIVOS:
         incluye_caja: false,
         incluye_cargador: false,
         ciclos_bateria: null,
+        porcentaje_bateria: null,
         moneda: 'PEN',
         precio_normalizado_pen: 0,
         es_precio_gancho: true,
+        price_corrected: false,
         distrito_ciudad: locationText || 'Perú',
         tags: []
       }
