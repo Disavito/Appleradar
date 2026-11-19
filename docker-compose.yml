@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # MACRADAR WORKER (Scraper & AI Processor)
+  # ==========================================
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - RUN_ON_BOOT=true
+      - PROXY_SERVER=${PROXY_SERVER}
+      - PROXY_USER=${PROXY_USER}
+      - PROXY_PASS=${PROXY_PASS}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - FIREBASE_SERVICE_ACCOUNT=${FIREBASE_SERVICE_ACCOUNT}
+      - FIRESTORE_COLLECTION=listings
+      - CRON_SCHEDULE=0 */3 * * *
+    # Límites prudentes de recursos (tu VPS tiene 24GB RAM y 8 vCPUs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+
+  # ==========================================
+  # MACRADAR DASHBOARD (Opcional si usas Coolify para hostear la web)
+  # ==========================================
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_FIREBASE_API_KEY=AIzaSyCy_VyUVOTlnUyD0mpHxjZPcXbLfuQaEsA
+      - VITE_FIREBASE_AUTH_DOMAIN=macradar-7268f.firebaseapp.com
+      - VITE_FIREBASE_PROJECT_ID=macradar-7268f
+      - VITE_FIREBASE_STORAGE_BUCKET=macradar-7268f.firebasestorage.app
+      - VITE_FIREBASE_MESSAGING_SENDER_ID=288282610724
+      - VITE_FIREBASE_APP_ID=1:288282610724:web:a068c1584273a734069cb1

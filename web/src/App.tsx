@@ -1,0 +1,270 @@
+import { useEffect, useState, useRef } from 'react';
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { db } from './firebase';
+import type { ListingItem } from './types';
+import { MetricsCards } from './components/MetricsCards';
+import { ListingsTable } from './components/ListingsTable';
+import { Radar, RefreshCw, Radio, Bell, BellRing } from 'lucide-react';
+import { registerServiceWorker, requestNotificationPermission, showPushNotification } from './notifications';
+
+// Muestra de datos referencial
+const MOCK_LISTINGS: ListingItem[] = [
+  {
+    id: '1',
+    listingId: '982348271',
+    title: 'MacBook Pro 14 M1 Pro 16GB 512GB como nueva',
+    chip: 'M1',
+    pulgadas: 14,
+    ram_gb: 16,
+    almacenamiento_gb: 512,
+    incluye_caja: true,
+    incluye_cargador: true,
+    ciclos_bateria: 85,
+    moneda: 'PEN',
+    precio_normalizado_pen: 4350,
+    es_precio_gancho: false,
+    distrito_ciudad: 'Miraflores',
+    city: 'Lima',
+    itemUrl: 'https://www.facebook.com/marketplace/item/982348271/',
+    scrapedAt: new Date().toISOString()
+  },
+  {
+    id: '2',
+    listingId: '823749823',
+    title: 'MacBook Pro M2 Max 32GB 1TB Impecable',
+    chip: 'M2',
+    pulgadas: 16,
+    ram_gb: 32,
+    almacenamiento_gb: 1000,
+    incluye_caja: true,
+    incluye_cargador: true,
+    ciclos_bateria: 42,
+    moneda: 'PEN',
+    precio_normalizado_pen: 6800,
+    es_precio_gancho: false,
+    distrito_ciudad: 'Yanahuara',
+    city: 'Arequipa',
+    itemUrl: 'https://www.facebook.com/marketplace/item/823749823/',
+    scrapedAt: new Date().toISOString()
+  },
+  {
+    id: '3',
+    listingId: '762348911',
+    title: 'MacBook Pro M3 8GB 512GB Space Gray',
+    chip: 'M3',
+    pulgadas: 14,
+    ram_gb: 8,
+    almacenamiento_gb: 512,
+    incluye_caja: false,
+    incluye_cargador: true,
+    ciclos_bateria: 15,
+    moneda: 'PEN',
+    precio_normalizado_pen: 5100,
+    es_precio_gancho: false,
+    distrito_ciudad: 'San Isidro',
+    city: 'Lima',
+    itemUrl: 'https://www.facebook.com/marketplace/item/762348911/',
+    scrapedAt: new Date().toISOString()
+  },
+  {
+    id: '4',
+    listingId: '109823741',
+    title: 'MacBook Pro M1 remato hoy inbox',
+    chip: 'M1',
+    pulgadas: 13,
+    ram_gb: 8,
+    almacenamiento_gb: 256,
+    incluye_caja: false,
+    incluye_cargador: false,
+    ciclos_bateria: null,
+    moneda: 'PEN',
+    precio_normalizado_pen: 1,
+    es_precio_gancho: true,
+    distrito_ciudad: 'Los Olivos',
+    city: 'Lima',
+    itemUrl: 'https://www.facebook.com/marketplace/item/109823741/',
+    scrapedAt: new Date().toISOString()
+  }
+];
+
+export function App() {
+  const [listings, setListings] = useState<ListingItem[]>([]);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [pushStatus, setPushStatus] = useState<NotificationPermission>('default');
+
+  // Mapa en memoria para detectar cambios de precio o nuevas publicaciones en tiempo real
+  const previousListingsRef = useRef<Map<string, number>>(new Map());
+  const isFirstLoadRef = useRef<boolean>(true);
+
+  // Registrar Service Worker y verificar permiso de notificaciones
+  useEffect(() => {
+    registerServiceWorker();
+    if ('Notification' in window) {
+      setPushStatus(Notification.permission);
+    }
+  }, []);
+
+  const handleEnablePush = async () => {
+    const result = await requestNotificationPermission();
+    setPushStatus(result);
+    if (result === 'granted') {
+      showPushNotification('🔔 MacRadar Pro Activado', {
+        body: 'Recibirás notificaciones push al instante cuando baje el precio de un MacBook o aparezca una oferta.',
+        data: { url: window.location.href }
+      });
+    }
+  };
+
+  useEffect(() => {
+    try {
+      const q = query(
+        collection(db, 'listings'),
+        orderBy('updatedAt', 'desc'),
+        limit(200)
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const items: ListingItem[] = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...(doc.data() as any)
+            }));
+
+            // Si no es la primera carga y las notificaciones están activadas, chequear bajadas o nuevos
+            if (!isFirstLoadRef.current && Notification.permission === 'granted') {
+              for (const item of items) {
+                const prevPrice = previousListingsRef.current.get(item.listingId);
+                const currentPrice = item.precio_normalizado_pen;
+
+                // 1. Detección de Bajada de Precio
+                if (prevPrice !== undefined && currentPrice < prevPrice && !item.es_precio_gancho && currentPrice > 100) {
+                  const savings = prevPrice - currentPrice;
+                  showPushNotification(`🚨 ¡Bajó de precio! MacBook Pro ${item.chip}`, {
+                    body: `Ahorro de S/ ${savings.toLocaleString('es-PE')}. Nuevo precio: S/ ${currentPrice.toLocaleString('es-PE')} en ${item.city}`,
+                    data: { url: item.itemUrl }
+                  });
+                }
+                // 2. Nuevo Anuncio publicado
+                else if (prevPrice === undefined && !item.es_precio_gancho && currentPrice > 500) {
+                  showPushNotification(`✨ Nueva MacBook Pro ${item.chip} (${item.city})`, {
+                    body: `S/ ${currentPrice.toLocaleString('es-PE')} - ${item.title.slice(0, 60)}...`,
+                    data: { url: item.itemUrl }
+                  });
+                }
+              }
+            }
+
+            // Actualizar mapa de precios anteriores
+            const newMap = new Map<string, number>();
+            items.forEach((it) => newMap.set(it.listingId, it.precio_normalizado_pen));
+            previousListingsRef.current = newMap;
+            isFirstLoadRef.current = false;
+
+            setListings(items);
+            setIsConnected(true);
+          } else {
+            setListings(MOCK_LISTINGS);
+            setIsConnected(true);
+          }
+          setLoading(false);
+        },
+        (error) => {
+          console.warn('Conexión Firestore en modo preview/mock:', error.message);
+          setListings(MOCK_LISTINGS);
+          setIsConnected(false);
+          setLoading(false);
+        }
+      );
+
+      return () => unsubscribe();
+    } catch (e) {
+      setListings(MOCK_LISTINGS);
+      setLoading(false);
+    }
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col">
+      {/* Header */}
+      <header className="border-b border-zinc-800 bg-[#121214]/80 backdrop-blur sticky top-0 z-50 px-4 sm:px-6 py-4">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-cyan-400">
+              <Radar className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                MacRadar <span className="text-xs px-2 py-0.5 font-normal rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">Pro</span>
+              </h1>
+              <p className="text-xs text-zinc-400">
+                Monitoreo inteligente en Facebook Marketplace (Arequipa & Lima)
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Botón de Notificaciones Push Web / Celular */}
+            {pushStatus !== 'granted' ? (
+              <button
+                onClick={handleEnablePush}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium rounded-lg text-xs transition shadow-sm"
+                title="Activar notificaciones push en esta pantalla o celular"
+              >
+                <Bell className="w-4 h-4 animate-bounce" />
+                <span>Activar Notificaciones Push</span>
+              </button>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium rounded-lg text-xs">
+                <BellRing className="w-3.5 h-3.5" />
+                <span>Push Activo (Web / Celular)</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 text-xs bg-zinc-900 border border-zinc-800 px-2.5 py-1.5 rounded-lg">
+              <span className="flex h-2 w-2 relative">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isConnected ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+              </span>
+              <span className="text-zinc-400 font-medium">
+                {isConnected ? 'Firestore en Vivo' : 'Modo Preview'}
+              </span>
+            </div>
+
+            <button
+              onClick={() => window.location.reload()}
+              className="p-2 text-zinc-400 hover:text-white bg-zinc-800/80 hover:bg-zinc-700 rounded-lg transition"
+              title="Refrescar vista"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Contenido Principal */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-zinc-500 space-y-3">
+            <Radio className="w-8 h-8 animate-spin text-cyan-500" />
+            <p className="text-sm">Sintonizando señal de Marketplace...</p>
+          </div>
+        ) : (
+          <>
+            <MetricsCards listings={listings} />
+            <ListingsTable listings={listings} />
+          </>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-zinc-800/80 py-4 px-6 text-center text-xs text-zinc-500">
+        MacRadar Pro • Notificaciones Push PWA para PC y Móvil • Sin depender de Telegram
+      </footer>
+    </div>
+  );
+}
+
+export default App;

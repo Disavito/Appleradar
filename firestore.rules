@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permite lectura pública para el Dashboard Web y la PWA en celulares
+    // Bloquea escritura externa (el Worker usa Service Account Admin y no se ve afectado)
+    match /listings/{listingId} {
+      allow read: if true;
+      allow write: if false;
+      
+      match /historial_precios/{historyId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+  }
+}
