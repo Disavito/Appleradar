@@ -131,7 +131,7 @@ export function App() {
       const q = query(
         collection(db, 'listings'),
         orderBy('updatedAt', 'desc'),
-        limit(500)
+        limit(5000)
       );
 
       const unsubscribe = onSnapshot(
