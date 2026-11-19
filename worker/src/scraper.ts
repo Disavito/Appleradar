@@ -23,7 +23,7 @@ export class ScraperService {
         username: CONFIG.proxyUser || undefined,
         password: CONFIG.proxyPass || undefined
       };
-      console.log(`🌐 Usando proxy configurado: ${CONFIG.proxyServer}`);
+      console.log(`🌐 Usando proxy: ${CONFIG.proxyServer}`);
     } else {
       console.log('ℹ️ Modo directo (sin proxy).');
     }
@@ -94,27 +94,25 @@ export class ScraperService {
     const searchUrl = `https://www.facebook.com/marketplace/${cityPath}/search?query=${encodedTerm}`;
     console.log(`🔎 Explorando búsqueda: ${cityName} -> "${searchTerm}"`);
 
-    await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 45000 }).catch(async () => {
-      await page.waitForLoadState('domcontentloaded');
-    });
+    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.waitForTimeout(4000);
 
-    // Diagnóstico del estado de la página
-    const pageState = await page.evaluate(() => {
+    // Diagnóstico exacto del HTML que recibe el navegador
+    const debugInfo = await page.evaluate(() => {
+      const allLinks = Array.from(document.querySelectorAll('a')).map(a => a.href);
+      const sampleLinks = allLinks.slice(0, 10);
       const title = document.title;
-      const bodyText = (document.body.innerText || '').slice(0, 300);
-      const isLoginWall = bodyText.includes('iniciar sesión') || bodyText.includes('Log in') || bodyText.includes('Crea una cuenta');
-      const isBlocked = bodyText.includes('no está disponible') || bodyText.includes('not available');
-      const totalLinks = document.querySelectorAll('a').length;
-      return { title, isLoginWall, isBlocked, totalLinks, sampleText: bodyText.slice(0, 150) };
+      const snippet = (document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 200);
+      return { title, sampleLinks, snippet, totalLinks: allLinks.length };
     });
 
-    if (pageState.isLoginWall || pageState.isBlocked) {
-      console.log(`🔒 Facebook requiere autenticación en esta búsqueda (${cityName}): ${pageState.isLoginWall ? 'Muro de Login' : 'Contenido no disponible'}`);
-    }
+    console.log(`📄 Título de página: "${debugInfo.title}"`);
+    console.log(`📝 Texto visible en pantalla: "${debugInfo.snippet}"`);
+    console.log(`🔗 Primeros enlaces en página:`, JSON.stringify(debugInfo.sampleLinks));
 
-    // Scroll para activar render de React
+    // Scroll para forzar carga de resultados
     await page.evaluate(() => window.scrollBy(0, 1200));
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500);
 
     const rawItems = await page.evaluate(
       ({ cityName, searchTerm }) => {
@@ -128,7 +126,7 @@ export class ScraperService {
           scrapedAt: string;
         }> = [];
 
-        // Buscar enlaces que apunten a un item de Marketplace
+        // Buscar tanto href con /marketplace/item/ como enlaces que tengan formato de anuncio
         const links = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]'));
         const seenIds = new Set<string>();
 
@@ -171,7 +169,7 @@ export class ScraperService {
       { cityName, searchTerm }
     );
 
-    console.log(`📌 Encontrados ${rawItems.length} anuncios para "${searchTerm}" en ${cityName} (Links evaluados en DOM: ${pageState.totalLinks})`);
+    console.log(`📌 Encontrados ${rawItems.length} anuncios para "${searchTerm}" en ${cityName}`);
     return rawItems;
   }
 
