@@ -33,11 +33,19 @@ const DEFAULT_SETTINGS: ScraperSettings = {
     { term: 'MacBook Air M3', category: 'MacBook Air', enabled: true },
     { term: 'MacBook Air M4', category: 'MacBook Air', enabled: false },
     { term: 'MacBook Neo', category: 'MacBook', enabled: false },
+    { term: 'MacBook Pro i9', category: 'MacBook Pro', enabled: false },
+    { term: 'Mac Mini M1', category: 'Mac Mini', enabled: false },
+    { term: 'Mac Mini M2', category: 'Mac Mini', enabled: false },
+    { term: 'Mac Mini M4', category: 'Mac Mini', enabled: false },
+    { term: 'iMac M1', category: 'iMac', enabled: false },
+    { term: 'iMac M3', category: 'iMac', enabled: false },
     { term: 'iPad Pro M1', category: 'iPad', enabled: false },
     { term: 'iPad Pro M2', category: 'iPad', enabled: false },
     { term: 'iPad Pro M4', category: 'iPad', enabled: false },
     { term: 'iPad Air M1', category: 'iPad', enabled: false },
-    { term: 'iPad Air M2', category: 'iPad', enabled: false }
+    { term: 'iPad Air M2', category: 'iPad', enabled: false },
+    { term: 'iPhone 15 Pro', category: 'iPhone', enabled: false },
+    { term: 'iPhone 16 Pro', category: 'iPhone', enabled: false }
   ]
 };
 
@@ -49,7 +57,7 @@ const GEMINI_MODELS = [
   { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash — Legacy' }
 ];
 
-const CATEGORIES = ['MacBook Pro', 'MacBook Air', 'MacBook', 'iPad', 'Mac Mini', 'iMac', 'Otro'];
+const CATEGORIES = ['MacBook Pro', 'MacBook Air', 'MacBook', 'Mac Mini', 'iMac', 'Mac Studio', 'iPad', 'iPhone', 'Otro'];
 
 interface Props {
   isOpen: boolean;
@@ -165,23 +173,25 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Configuración del Radar"
     >
       <div
-        className="bg-[#111114] border border-white/[0.12] rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl"
+        className="bg-white dark:bg-[#202024] border border-zinc-200 dark:border-white/[0.12] rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-white/[0.08]">
           <div className="flex items-center gap-2.5">
-            <Settings className="w-5 h-5 text-sky-400" />
+            <Settings className="w-5 h-5 text-zinc-700 dark:text-zinc-200" />
             <div>
-              <h2 className="text-base sm:text-lg font-semibold text-white">Configurar Radar</h2>
-              <p className="text-xs text-zinc-400">
+              <h2 className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-white">
+                Configurar Radar
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Personaliza ciudades del Perú, términos de búsqueda y modelo de IA
               </p>
             </div>
@@ -189,7 +199,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-white/[0.08] transition"
+            className="p-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white rounded-lg hover:bg-zinc-100 dark:hover:bg-white/[0.08] transition"
             aria-label="Cerrar configuración"
           >
             <X className="w-5 h-5" />
@@ -197,14 +207,14 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="px-6 pt-3 pb-2 border-b border-white/[0.06] flex items-center gap-2 overflow-x-auto bg-[#0e0e11]">
+        <div className="px-6 pt-3 pb-2 border-b border-zinc-200 dark:border-white/[0.08] flex items-center gap-2 overflow-x-auto bg-zinc-50 dark:bg-[#1b1b1f]">
           <button
             type="button"
             onClick={() => setActiveTab('zones')}
             className={`h-9 px-3.5 rounded-lg text-xs sm:text-[13px] font-medium inline-flex items-center gap-2 transition whitespace-nowrap ${
               activeTab === 'zones'
-                ? 'bg-white text-zinc-950'
-                : 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
+                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-white/[0.06]'
             }`}
           >
             <MapPin className="w-3.5 h-3.5" />
@@ -216,8 +226,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             onClick={() => setActiveTab('keywords')}
             className={`h-9 px-3.5 rounded-lg text-xs sm:text-[13px] font-medium inline-flex items-center gap-2 transition whitespace-nowrap ${
               activeTab === 'keywords'
-                ? 'bg-white text-zinc-950'
-                : 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
+                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-white/[0.06]'
             }`}
           >
             <Search className="w-3.5 h-3.5" />
@@ -229,8 +239,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             onClick={() => setActiveTab('model')}
             className={`h-9 px-3.5 rounded-lg text-xs sm:text-[13px] font-medium inline-flex items-center gap-2 transition whitespace-nowrap ${
               activeTab === 'model'
-                ? 'bg-white text-zinc-950'
-                : 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
+                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-white/[0.06]'
             }`}
           >
             <Cpu className="w-3.5 h-3.5" />
@@ -242,7 +252,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
         <div className="p-6 overflow-y-auto space-y-5 text-sm flex-1">
           {activeTab === 'zones' && (
             <div className="space-y-4">
-              <p className="text-xs text-zinc-300 leading-relaxed">
+              <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
                 Selecciona las ciudades o zonas del Perú que el scraper debe explorar en cada ciclo.
               </p>
 
@@ -254,8 +264,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     onClick={() => toggleLocation(idx)}
                     className={`h-10 px-4 rounded-xl text-[13px] font-medium border transition ${
                       loc.enabled
-                        ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
-                        : 'bg-[#16161b] border-white/[0.08] text-zinc-400 hover:text-zinc-200 hover:border-white/[0.16]'
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800 dark:bg-emerald-500/15 dark:border-emerald-500/50 dark:text-emerald-300'
+                        : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-[#27272c] dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-zinc-200'
                     }`}
                   >
                     {loc.enabled ? '✓ ' : ''}
@@ -264,25 +274,25 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 ))}
               </div>
 
-              <div className="pt-3 border-t border-white/[0.06] flex flex-wrap gap-2.5">
+              <div className="pt-3 border-t border-zinc-200 dark:border-white/[0.08] flex flex-wrap gap-2.5">
                 <input
                   type="text"
                   placeholder="Agregar ciudad o distrito (ej: Miraflores)"
                   value={newCity}
                   onChange={(e) => setNewCity(e.target.value)}
-                  className="flex-1 min-w-[180px] h-10 bg-[#0a0a0c] border border-white/[0.1] rounded-lg px-3 text-sm text-white placeholder:text-zinc-500 focus:border-sky-500 focus:outline-none"
+                  className="flex-1 min-w-[180px] h-10 bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] rounded-lg px-3 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
                 />
                 <input
                   type="text"
                   placeholder="Slug URL (opcional)"
                   value={newCityPath}
                   onChange={(e) => setNewCityPath(e.target.value)}
-                  className="w-44 h-10 bg-[#0a0a0c] border border-white/[0.1] rounded-lg px-3 text-sm text-white placeholder:text-zinc-500 focus:border-sky-500 focus:outline-none"
+                  className="w-44 h-10 bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] rounded-lg px-3 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={addLocation}
-                  className="h-10 px-4 inline-flex items-center gap-1.5 bg-white/[0.08] hover:bg-white/[0.15] text-white rounded-lg text-[13px] font-medium transition"
+                  className="h-10 px-4 inline-flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-white/[0.08] dark:hover:bg-white/[0.15] dark:text-white rounded-lg text-[13px] font-medium transition"
                 >
                   <Plus className="w-4 h-4" /> Agregar Zona
                 </button>
@@ -292,7 +302,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
           {activeTab === 'keywords' && (
             <div className="space-y-4">
-              <p className="text-xs text-zinc-300 leading-relaxed">
+              <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
                 Activa o agrega las palabras clave de productos Apple que quieres monitorear por categoría.
               </p>
 
@@ -302,8 +312,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     key={`${kw.term}-${idx}`}
                     className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition ${
                       kw.enabled
-                        ? 'bg-sky-500/10 border-sky-500/40 text-sky-200'
-                        : 'bg-[#16161b] border-white/[0.07] text-zinc-400'
+                        ? 'bg-zinc-900 border-zinc-900 text-white dark:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-900'
+                        : 'bg-zinc-50 border-zinc-200 text-zinc-600 dark:bg-[#27272c] dark:border-white/[0.08] dark:text-zinc-400'
                     }`}
                   >
                     <button
@@ -319,7 +329,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     <button
                       type="button"
                       onClick={() => removeTerm(idx)}
-                      className="p-2 text-zinc-400 hover:text-red-400 rounded-lg hover:bg-white/[0.06]"
+                      className="p-2 opacity-70 hover:opacity-100 hover:text-red-500 rounded-lg"
                       title="Eliminar palabra clave"
                       aria-label={`Eliminar ${kw.term}`}
                     >
@@ -329,19 +339,19 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 ))}
               </div>
 
-              <div className="pt-3 border-t border-white/[0.06] flex flex-wrap gap-2.5">
+              <div className="pt-3 border-t border-zinc-200 dark:border-white/[0.08] flex flex-wrap gap-2.5">
                 <input
                   type="text"
-                  placeholder="Nueva keyword (ej: MacBook Air M4, iPad Pro)"
+                  placeholder="Nueva keyword (ej: Mac Mini M4, MacBook Pro i9)"
                   value={newTerm}
                   onChange={(e) => setNewTerm(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addTerm()}
-                  className="flex-1 min-w-[200px] h-10 bg-[#0a0a0c] border border-white/[0.1] rounded-lg px-3 text-sm text-white placeholder:text-zinc-500 focus:border-sky-500 focus:outline-none"
+                  className="flex-1 min-w-[200px] h-10 bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] rounded-lg px-3 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
                 />
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
-                  className="h-10 bg-[#0a0a0c] border border-white/[0.1] rounded-lg px-3 text-sm text-white focus:border-sky-500 focus:outline-none"
+                  className="h-10 bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] rounded-lg px-3 text-sm text-zinc-900 dark:text-white focus:border-zinc-400 focus:outline-none"
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>
@@ -352,7 +362,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <button
                   type="button"
                   onClick={addTerm}
-                  className="h-10 px-4 inline-flex items-center gap-1.5 bg-white/[0.08] hover:bg-white/[0.15] text-white rounded-lg text-[13px] font-medium transition"
+                  className="h-10 px-4 inline-flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-white/[0.08] dark:hover:bg-white/[0.15] dark:text-white rounded-lg text-[13px] font-medium transition"
                 >
                   <Plus className="w-4 h-4" /> Agregar
                 </button>
@@ -362,12 +372,12 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
           {activeTab === 'model' && (
             <div className="space-y-4">
-              <p className="text-xs text-zinc-300 leading-relaxed">
+              <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
                 Elige el modelo de Google Gemini que analizará las descripciones nuevas o cambios de precio.
               </p>
 
               <div className="space-y-3">
-                <label className="block text-xs font-medium text-zinc-300">
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                   Modelos recomendados
                 </label>
                 <select
@@ -378,7 +388,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       setCustomModel('');
                     }
                   }}
-                  className="w-full h-10 bg-[#0a0a0c] border border-white/[0.1] rounded-lg px-3 text-sm text-white focus:border-sky-500 focus:outline-none"
+                  className="w-full h-10 bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] rounded-lg px-3 text-sm text-zinc-900 dark:text-white focus:border-zinc-400 focus:outline-none"
                 >
                   {GEMINI_MODELS.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -389,7 +399,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </select>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                     O escribe un ID de modelo personalizado
                   </label>
                   <input
@@ -397,7 +407,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     placeholder="Ej: gemini-2.5-flash-preview-05-20"
                     value={customModel || (!isKnownModel ? settings.geminiModel : '')}
                     onChange={(e) => setCustomModel(e.target.value)}
-                    className="w-full h-10 bg-[#0a0a0c] border border-white/[0.1] rounded-lg px-3 text-sm text-white placeholder:text-zinc-500 focus:border-sky-500 focus:outline-none font-mono-nums"
+                    className="w-full h-10 bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] rounded-lg px-3 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none font-mono-nums"
                   />
                 </div>
               </div>
@@ -406,8 +416,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/[0.08] flex flex-wrap items-center justify-between gap-3 bg-[#0d0d10] rounded-b-2xl">
-          <div className="text-xs text-emerald-400 flex items-center gap-1.5 min-h-[20px]">
+        <div className="px-6 py-4 border-t border-zinc-200 dark:border-white/[0.08] flex flex-wrap items-center justify-between gap-3 bg-zinc-50 dark:bg-[#1b1b1f] rounded-b-2xl">
+          <div className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 min-h-[20px]">
             {savedMsg && (
               <>
                 <CheckCircle2 className="w-4 h-4" />
@@ -430,7 +440,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
               type="button"
               onClick={() => handleSave(false)}
               disabled={saving}
-              className="h-10 px-4 inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white text-[13px] font-semibold rounded-lg transition disabled:opacity-50"
+              className="h-10 px-4 inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 text-[13px] font-semibold rounded-lg transition disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
               Guardar Cambios

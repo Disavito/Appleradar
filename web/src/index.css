@@ -3,18 +3,20 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    color-scheme: dark;
-  }
-
   body {
     margin: 0;
-    background-color: #0a0a0c;
-    color: #f4f4f6;
+    background-color: #f5f5f7;
+    color: #18181b;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  html.dark body {
+    background-color: #18181b;
+    color: #f4f4f5;
   }
 }
 
@@ -23,7 +25,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Scrollbar discreta */
+/* Scrollbar discreta para ambos temas */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -34,10 +36,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(113, 113, 122, 0.28);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(113, 113, 122, 0.48);
 }

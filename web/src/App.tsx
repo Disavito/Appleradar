@@ -4,7 +4,7 @@ import { db } from './firebase';
 import type { ListingItem } from './types';
 import { Dashboard } from './components/Dashboard';
 import { SettingsModal } from './components/SettingsModal';
-import { Radar, RefreshCw, Radio, Bell, BellRing, Settings } from 'lucide-react';
+import { Radar, RefreshCw, Radio, Bell, BellRing, Settings, Sun, Moon } from 'lucide-react';
 import { registerServiceWorker, requestNotificationPermission, showPushNotification } from './notifications';
 
 // Muestra de datos referencial
@@ -93,6 +93,15 @@ export function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [pushStatus, setPushStatus] = useState<NotificationPermission>('default');
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('appleradar_theme');
+    return saved === 'dark' ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('appleradar_theme', theme);
+  }, [theme]);
 
   // Mapa en memoria para detectar cambios de precio o nuevas publicaciones en tiempo real
   const previousListingsRef = useRef<Map<string, number>>(new Map());
@@ -134,7 +143,6 @@ export function App() {
               ...(doc.data() as any)
             }));
 
-            // Si no es la primera carga y las notificaciones están activadas, chequear bajadas o nuevos
             if (!isFirstLoadRef.current && Notification.permission === 'granted') {
               for (const item of items) {
                 const prevPrice = previousListingsRef.current.get(item.listingId);
@@ -184,20 +192,20 @@ export function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-[#f4f4f6] flex flex-col">
+    <div className="min-h-screen bg-[#f5f5f7] dark:bg-[#18181b] text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors">
       {/* Header */}
-      <header className="border-b border-white/[0.07] bg-[#0a0a0c]/90 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-6 py-3.5">
+      <header className="border-b border-zinc-200 dark:border-white/[0.08] bg-white/90 dark:bg-[#18181b]/90 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-6 py-3.5">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-sky-400">
+            <div className="w-9 h-9 rounded-xl bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center text-white dark:text-zinc-900">
               <Radar className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-base font-semibold tracking-tight text-white">
+              <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white">
                 AppleRadar
               </h1>
-              <p className="text-xs text-zinc-400">
-                Mercado Apple en Perú · MacBook Pro, Air, Neo, iPad
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Mercado Apple en Perú · MacBook Pro, Air, Mac Mini, iPad & iPhone
               </p>
             </div>
           </div>
@@ -206,10 +214,10 @@ export function App() {
             <button
               type="button"
               onClick={() => setIsSettingsOpen(true)}
-              className="inline-flex items-center gap-2 h-9 px-3.5 bg-[#16161b] hover:bg-[#1e1e25] text-white border border-white/[0.1] font-medium rounded-lg text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60"
+              className="inline-flex items-center gap-2 h-9 px-3.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 dark:bg-[#27272c] dark:hover:bg-[#303036] dark:text-zinc-100 dark:border-white/[0.1] font-medium rounded-lg text-[13px] transition"
               title="Elegir ciudades del Perú, palabras clave y modelo Gemini"
             >
-              <Settings className="w-4 h-4 text-zinc-300" />
+              <Settings className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
               <span>Configurar Radar</span>
             </button>
 
@@ -217,34 +225,44 @@ export function App() {
               <button
                 type="button"
                 onClick={handleEnablePush}
-                className="inline-flex items-center gap-2 h-9 px-3.5 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded-lg text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                className="inline-flex items-center gap-2 h-9 px-3.5 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 font-medium rounded-lg text-[13px] transition"
                 title="Activar notificaciones push en esta pantalla o celular"
               >
                 <Bell className="w-4 h-4" />
                 <span>Activar Push</span>
               </button>
             ) : (
-              <div className="inline-flex items-center gap-1.5 h-9 px-3.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-medium rounded-lg text-[13px]">
+              <div className="inline-flex items-center gap-1.5 h-9 px-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300 font-medium rounded-lg text-[13px]">
                 <BellRing className="w-4 h-4" />
                 <span>Push Activo</span>
               </div>
             )}
 
-            <div className="hidden sm:flex items-center gap-2 h-9 text-xs bg-[#111114] border border-white/[0.08] px-3 rounded-lg">
+            <div className="hidden sm:flex items-center gap-2 h-9 text-xs bg-zinc-100 dark:bg-[#202024] border border-zinc-200 dark:border-white/[0.08] px-3 rounded-lg">
               <span
                 className={`inline-block rounded-full h-2 w-2 ${
                   isConnected ? 'bg-emerald-500' : 'bg-amber-500'
                 }`}
               />
-              <span className="text-zinc-300 font-medium">
+              <span className="text-zinc-700 dark:text-zinc-300 font-medium">
                 {isConnected ? 'En vivo' : 'Preview'}
               </span>
             </div>
 
             <button
               type="button"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="h-9 w-9 inline-flex items-center justify-center text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 dark:text-zinc-300 dark:hover:text-white dark:bg-[#27272c] dark:hover:bg-[#303036] dark:border-white/[0.1] rounded-lg transition"
+              title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo plomo oscuro'}
+              aria-label="Cambiar tema"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            <button
+              type="button"
               onClick={() => window.location.reload()}
-              className="h-9 w-9 inline-flex items-center justify-center text-zinc-300 hover:text-white bg-[#16161b] hover:bg-[#1e1e25] border border-white/[0.1] rounded-lg transition"
+              className="h-9 w-9 inline-flex items-center justify-center text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 dark:text-zinc-300 dark:hover:text-white dark:bg-[#27272c] dark:hover:bg-[#303036] dark:border-white/[0.1] rounded-lg transition"
               title="Refrescar vista"
               aria-label="Refrescar vista"
             >
@@ -257,8 +275,8 @@ export function App() {
       {/* Contenido Principal */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 text-zinc-500 space-y-3">
-            <Radio className="w-7 h-7 animate-spin text-sky-500" />
+          <div className="flex flex-col items-center justify-center py-24 text-zinc-500 dark:text-zinc-400 space-y-3">
+            <Radio className="w-7 h-7 animate-spin text-zinc-600 dark:text-zinc-300" />
             <p className="text-xs font-medium">Cargando mercado en tiempo real...</p>
           </div>
         ) : (
@@ -269,7 +287,7 @@ export function App() {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* Footer */}
-      <footer className="border-t border-white/[0.06] py-4 px-6 text-center text-[11px] text-zinc-500">
+      <footer className="border-t border-zinc-200 dark:border-white/[0.08] py-4 px-6 text-center text-[11px] text-zinc-500 dark:text-zinc-400">
         AppleRadar · Monitoreo autónomo de precios en tiempo real
       </footer>
     </div>
