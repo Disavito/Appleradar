@@ -105,7 +105,17 @@ export class ScraperService {
     console.log(`🔎 Explorando búsqueda: ${cityName} -> "${searchTerm}"`);
 
     await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(3000);
+
+    // Auto-login con 1 clic si aparece el botón "Continuar como Diego Vito"
+    try {
+      const continueBtn = await page.$('div[role="button"]:has-text("Continuar"), button:has-text("Continuar"), a:has-text("Continuar")');
+      if (continueBtn) {
+        console.log('👆 Detectado botón "Continuar como usuario". Haciendo clic automático...');
+        await continueBtn.click();
+        await page.waitForTimeout(4000);
+      }
+    } catch (_) {}
 
     // Diagnóstico exacto del HTML que recibe el navegador
     const debugInfo = await page.evaluate(() => {
@@ -118,7 +128,6 @@ export class ScraperService {
 
     console.log(`📄 Título de página: "${debugInfo.title}"`);
     console.log(`📝 Texto visible en pantalla: "${debugInfo.snippet}"`);
-    console.log(`🔗 Primeros enlaces en página:`, JSON.stringify(debugInfo.sampleLinks));
 
     // Scroll para forzar carga de resultados
     await page.evaluate(() => window.scrollBy(0, 1200));
@@ -136,7 +145,6 @@ export class ScraperService {
           scrapedAt: string;
         }> = [];
 
-        // Buscar tanto href con /marketplace/item/ como enlaces que tengan formato de anuncio
         const links = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]'));
         const seenIds = new Set<string>();
 
