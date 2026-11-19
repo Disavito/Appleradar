@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Permite lectura pública para el Dashboard Web y la PWA en celulares
-    // Bloquea escritura externa (el Worker usa Service Account Admin y no se ve afectado)
+    // Bloquea escritura externa en listings (el Worker usa Service Account Admin)
     match /listings/{listingId} {
       allow read: if true;
       allow write: if false;
@@ -11,6 +11,11 @@ service cloud.firestore {
         allow read: if true;
         allow write: if false;
       }
+    }
+
+    // Permite leer y actualizar la configuración del radar desde el Dashboard
+    match /settings/{settingId} {
+      allow read, write: if true;
     }
   }
 }

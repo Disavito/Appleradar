@@ -4,7 +4,8 @@ import { db } from './firebase';
 import type { ListingItem } from './types';
 import { MetricsCards } from './components/MetricsCards';
 import { ListingsTable } from './components/ListingsTable';
-import { Radar, RefreshCw, Radio, Bell, BellRing } from 'lucide-react';
+import { SettingsModal } from './components/SettingsModal';
+import { Radar, RefreshCw, Radio, Bell, BellRing, Settings } from 'lucide-react';
 import { registerServiceWorker, requestNotificationPermission, showPushNotification } from './notifications';
 
 // Muestra de datos referencial
@@ -92,6 +93,7 @@ export function App() {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [pushStatus, setPushStatus] = useState<NotificationPermission>('default');
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
   // Mapa en memoria para detectar cambios de precio o nuevas publicaciones en tiempo real
   const previousListingsRef = useRef<Map<string, number>>(new Map());
@@ -110,7 +112,7 @@ export function App() {
     setPushStatus(result);
     if (result === 'granted') {
       showPushNotification('🔔 MacRadar Pro Activado', {
-        body: 'Recibirás notificaciones push al instante cuando baje el precio de un MacBook o aparezca una oferta.',
+        body: 'Recibirás notificaciones push al instante cuando baje el precio de un equipo o aparezca una oferta.',
         data: { url: window.location.href }
       });
     }
@@ -121,7 +123,7 @@ export function App() {
       const q = query(
         collection(db, 'listings'),
         orderBy('updatedAt', 'desc'),
-        limit(200)
+        limit(500)
       );
 
       const unsubscribe = onSnapshot(
@@ -200,12 +202,22 @@ export function App() {
                 MacRadar <span className="text-xs px-2 py-0.5 font-normal rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">Pro</span>
               </h1>
               <p className="text-xs text-zinc-400">
-                Monitoreo inteligente en Facebook Marketplace (Arequipa & Lima)
+                Monitoreo en todo el Perú • MacBook Pro, Air, Neo, iPad & más
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Botón de Configuración (Zonas, Keywords, Modelo Gemini) */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 font-medium rounded-lg text-xs transition"
+              title="Elegir ciudades del Perú, palabras clave y modelo Gemini"
+            >
+              <Settings className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Configurar Radar</span>
+            </button>
+
             {/* Botón de Notificaciones Push Web / Celular */}
             {pushStatus !== 'granted' ? (
               <button
@@ -214,12 +226,12 @@ export function App() {
                 title="Activar notificaciones push en esta pantalla o celular"
               >
                 <Bell className="w-4 h-4 animate-bounce" />
-                <span>Activar Notificaciones Push</span>
+                <span>Activar Push</span>
               </button>
             ) : (
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium rounded-lg text-xs">
                 <BellRing className="w-3.5 h-3.5" />
-                <span>Push Activo (Web / Celular)</span>
+                <span>Push Activo</span>
               </div>
             )}
 
@@ -258,6 +270,8 @@ export function App() {
           </>
         )}
       </main>
+
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* Footer */}
       <footer className="border-t border-zinc-800/80 py-4 px-6 text-center text-xs text-zinc-500">

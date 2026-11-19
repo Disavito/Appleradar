@@ -1,8 +1,8 @@
 import admin from 'firebase-admin';
 import path from 'path';
 import fs from 'fs';
-import { CONFIG } from './config';
-import { FirestoreListing, PriceHistoryRecord } from './types';
+import { CONFIG, DEFAULT_SCRAPER_SETTINGS } from './config';
+import { FirestoreListing, PriceHistoryRecord, RawListing, ScraperSettings } from './types';
 
 let db: admin.firestore.Firestore;
 
@@ -14,7 +14,6 @@ export function initFirebase() {
     if (CONFIG.firebaseServiceAccount && CONFIG.firebaseServiceAccount.trim().length > 10) {
       try {
         let raw = CONFIG.firebaseServiceAccount.trim();
-        // Remover comillas envolventes si Coolify/Docker las añadió
         if ((raw.startsWith("'") && raw.endsWith("'")) || (raw.startsWith('"') && raw.endsWith('"'))) {
           raw = raw.slice(1, -1);
         }
@@ -67,25 +66,84 @@ export function initFirebase() {
   return db;
 }
 
-export async function filterExistingListingIds(ids: string[]): Promise<string[]> {
+/**
+ * Obtiene la configuración dinámica desde Firestore (ciudades, palabras clave, modelo Gemini)
+ */
+export async function getOrInitScraperSettings(): Promise<ScraperSettings> {
   if (!db) initFirebase();
-  if (ids.length === 0) return [];
+  const docRef = db.collection(CONFIG.settingsCollection).doc(CONFIG.settingsDocId);
+  const snap = await docRef.get();
 
-  const newIds: string[] = [];
+  if (!snap.exists) {
+    await docRef.set({
+      ...DEFAULT_SCRAPER_SETTINGS,
+      updatedAt: new Date().toISOString()
+    });
+    console.log('⚙️ Configuración inicial de zonas, keywords y modelo creada en Firestore.');
+    return DEFAULT_SCRAPER_SETTINGS;
+  }
+
+  const data = snap.data() as Partial<ScraperSettings>;
+  return {
+    geminiModel: data.geminiModel || DEFAULT_SCRAPER_SETTINGS.geminiModel,
+    locations: data.locations && data.locations.length > 0 ? data.locations : DEFAULT_SCRAPER_SETTINGS.locations,
+    searchTerms: data.searchTerms && data.searchTerms.length > 0 ? data.searchTerms : DEFAULT_SCRAPER_SETTINGS.searchTerms
+  };
+}
+
+/**
+ * Clasifica los anuncios recolectados para evitar re-analizar los que no han cambiado.
+ * Solo se re-inspeccionan si: son NUEVOS, cambió el rawPrice o falló Gemini antes.
+ */
+export async function classifyDiscoveredListings(items: RawListing[]): Promise<{
+  toInspect: Array<{ item: RawListing; reason: 'new' | 'price_changed' | 'retry_gemini' }>;
+  unchangedCount: number;
+}> {
+  if (!db) initFirebase();
+  if (items.length === 0) return { toInspect: [], unchangedCount: 0 };
+
+  const toInspect: Array<{ item: RawListing; reason: 'new' | 'price_changed' | 'retry_gemini' }> = [];
+  let unchangedCount = 0;
+
   const batchSize = 30;
-  for (let i = 0; i < ids.length; i += batchSize) {
-    const chunk = ids.slice(i, i + batchSize);
-    const refs = chunk.map(id => db.collection(CONFIG.firestoreCollection).doc(id));
+  for (let i = 0; i < items.length; i += batchSize) {
+    const chunk = items.slice(i, i + batchSize);
+    const refs = chunk.map((it) => db.collection(CONFIG.firestoreCollection).doc(it.listingId));
     const snapshots = await db.getAll(...refs);
 
-    for (const snap of snapshots) {
+    for (let j = 0; j < chunk.length; j++) {
+      const item = chunk[j];
+      const snap = snapshots[j];
+
       if (!snap.exists) {
-        newIds.push(snap.id);
+        toInspect.push({ item, reason: 'new' });
+        continue;
       }
+
+      const existing = snap.data() as Partial<FirestoreListing>;
+
+      // Si antes falló Gemini, reintentar
+      if (existing.analyzedWithGemini === false) {
+        toInspect.push({ item, reason: 'retry_gemini' });
+        continue;
+      }
+
+      // Si cambió el precio publicado en el listado, re-inspeccionar
+      if (existing.rawPrice && item.rawPrice && existing.rawPrice.trim() !== item.rawPrice.trim()) {
+        toInspect.push({ item, reason: 'price_changed' });
+        continue;
+      }
+
+      // Si no cambió nada: solo registrar lastSeenAt y sumar palabra clave si es nueva
+      unchangedCount++;
+      await snap.ref.update({
+        lastSeenAt: new Date().toISOString(),
+        matchedKeywords: admin.firestore.FieldValue.arrayUnion(item.searchTerm)
+      }).catch(() => {});
     }
   }
 
-  return newIds;
+  return { toInspect, unchangedCount };
 }
 
 export async function saveOrUpdateListing(
@@ -99,6 +157,7 @@ export async function saveOrUpdateListing(
   if (!snap.exists) {
     await docRef.set({
       ...listing,
+      priceDropCount: 0,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
@@ -115,7 +174,10 @@ export async function saveOrUpdateListing(
     oldPrice > 100 &&
     newPrice < oldPrice;
 
+  let priceDropCount = existingData.priceDropCount || 0;
+
   if (isRealPriceDrop) {
+    priceDropCount += 1;
     const diff = oldPrice - newPrice;
     console.log(`📉 ¡Bajada de precio detectada para ${listing.listingId}! S/ ${oldPrice} -> S/ ${newPrice} (Ahorro: S/ ${diff})`);
 
@@ -129,8 +191,15 @@ export async function saveOrUpdateListing(
     await historyRef.set(historyRecord);
   }
 
+  // Preservar todas las palabras clave con las que se encontró
+  const mergedKeywords = Array.from(
+    new Set([...(existingData.matchedKeywords || []), ...(listing.matchedKeywords || [])])
+  );
+
   await docRef.update({
     ...listing,
+    matchedKeywords: mergedKeywords,
+    priceDropCount,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
 

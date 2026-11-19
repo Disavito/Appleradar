@@ -7,10 +7,10 @@ interface Props {
 }
 
 export const MetricsCards: React.FC<Props> = ({ listings }) => {
-  // Filtrar los que no son gancho y tienen precio válido
-  const validListings = listings.filter((l) => !l.es_precio_gancho && l.precio_normalizado_pen > 200);
+  const validListings = listings.filter(
+    (l) => !l.es_precio_gancho && l.precio_normalizado_pen > 200 && l.status !== 'sold'
+  );
 
-  // Calcular precio promedio y mínimo por chip M1 a M5
   const chips = ['M1', 'M2', 'M3', 'M4', 'M5'] as const;
 
   const chipStats = chips.map((chip) => {
@@ -22,14 +22,14 @@ export const MetricsCards: React.FC<Props> = ({ listings }) => {
     return { chip, count: matching.length, min, avg };
   });
 
-  // Unidades detectadas hoy
   const today = new Date().toISOString().split('T')[0];
   const newToday = listings.filter((l) => l.scrapedAt && l.scrapedAt.startsWith(today)).length;
+  const priceDrops = listings.filter((l) => (l.priceDropCount || 0) > 0).length;
+  const uniqueCities = new Set(listings.map((l) => l.city).filter(Boolean)).size;
 
   return (
     <div className="space-y-4">
-      {/* Resumen Superior */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-zinc-400 text-sm font-medium">Equipos Monitoreados</span>
@@ -39,7 +39,7 @@ export const MetricsCards: React.FC<Props> = ({ listings }) => {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-bold tracking-tight text-white">{listings.length}</span>
-            <span className="text-xs text-zinc-500">en Lima y Arequipa</span>
+            <span className="text-xs text-zinc-500">en {uniqueCities || 1} zonas de Perú</span>
           </div>
         </div>
 
@@ -58,19 +58,31 @@ export const MetricsCards: React.FC<Props> = ({ listings }) => {
 
         <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-zinc-400 text-sm font-medium">Filtro Antigancho</span>
+            <span className="text-zinc-400 text-sm font-medium">Bajadas de Precio</span>
+            <div className="p-2 bg-amber-500/10 rounded-lg text-amber-400">
+              <TrendingDown className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight text-amber-400">{priceDrops}</span>
+            <span className="text-xs text-zinc-500">con descuento detectado</span>
+          </div>
+        </div>
+
+        <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-400 text-sm font-medium">Precios Verificados</span>
             <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400">
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-bold tracking-tight text-white">{validListings.length}</span>
-            <span className="text-xs text-zinc-500">precios reales verificados</span>
+            <span className="text-xs text-zinc-500">activos sin gancho</span>
           </div>
         </div>
       </div>
 
-      {/* Precios por Generación Apple Silicon */}
       <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
         <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-4 flex items-center gap-2">
           <TrendingDown className="w-4 h-4 text-emerald-400" />

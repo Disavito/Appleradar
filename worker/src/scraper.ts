@@ -112,12 +112,13 @@ export class ScraperService {
   async scrapeSearchList(
     page: Page,
     cityPath: string,
-    cityName: 'Arequipa' | 'Lima',
-    searchTerm: string
+    cityName: string,
+    searchTerm: string,
+    category: string
   ): Promise<RawListing[]> {
     const encodedTerm = encodeURIComponent(searchTerm);
     const searchUrl = `https://www.facebook.com/marketplace/${cityPath}/search?query=${encodedTerm}`;
-    console.log(`🔎 Explorando búsqueda: ${cityName} -> "${searchTerm}"`);
+    console.log(`🔎 Explorando búsqueda: ${cityName} [${category}] -> "${searchTerm}"`);
 
     await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForTimeout(3000);
@@ -150,29 +151,20 @@ export class ScraperService {
       }
     }
 
-    // Diagnóstico exacto del HTML que recibe el navegador
-    const debugInfo = await page.evaluate(() => {
-      const title = document.title;
-      const snippet = (document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 200);
-      return { title, snippet };
-    });
-
-    console.log(`📄 Título de página: "${debugInfo.title}"`);
-    console.log(`📝 Texto visible en pantalla: "${debugInfo.snippet}"`);
-
     // Scroll para forzar render de React en Marketplace
     await page.evaluate(() => window.scrollBy(0, 1500));
     await page.waitForTimeout(2500);
 
     const rawItems = await page.evaluate(
-      ({ cityName, searchTerm }) => {
+      ({ cityName, searchTerm, category }) => {
         const results: Array<{
           listingId: string;
           title: string;
           rawPrice: string;
           itemUrl: string;
-          city: 'Arequipa' | 'Lima';
+          city: string;
           searchTerm: string;
+          category: string;
           scrapedAt: string;
         }> = [];
 
@@ -207,15 +199,16 @@ export class ScraperService {
             title: title || cardText.slice(0, 80),
             rawPrice: rawPrice || 'No especificado',
             itemUrl: `https://www.facebook.com/marketplace/item/${listingId}/`,
-            city: cityName as 'Arequipa' | 'Lima',
+            city: cityName,
             searchTerm,
+            category,
             scrapedAt: new Date().toISOString()
           });
         }
 
         return results;
       },
-      { cityName, searchTerm }
+      { cityName, searchTerm, category }
     );
 
     console.log(`📌 Encontrados ${rawItems.length} anuncios para "${searchTerm}" en ${cityName}`);
@@ -231,6 +224,10 @@ export class ScraperService {
     const details = await page.evaluate(() => {
       let description = '';
       let locationText = '';
+
+      const bodyText = document.body.innerText || '';
+      const isSold =
+        /Vendido|Sold|Este anuncio ya no está disponible|no está disponible/i.test(bodyText.slice(0, 600));
 
       const spans = Array.from(document.querySelectorAll('span'));
       for (const span of spans) {
@@ -258,14 +255,16 @@ export class ScraperService {
 
       return {
         description: description || 'Sin descripción detallada disponible en el anuncio.',
-        locationText: locationText || ''
+        locationText: locationText || '',
+        isSold
       };
     });
 
     return {
       ...rawListing,
       description: details.description,
-      locationText: details.locationText || rawListing.city
+      locationText: details.locationText || rawListing.city,
+      isSold: details.isSold
     };
   }
 
