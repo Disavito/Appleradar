@@ -96,13 +96,13 @@ export async function getOrInitScraperSettings(): Promise<ScraperSettings> {
  * Solo se re-inspeccionan si: son NUEVOS, cambió el rawPrice o falló Gemini antes.
  */
 export async function classifyDiscoveredListings(items: RawListing[]): Promise<{
-  toInspect: Array<{ item: RawListing; reason: 'new' | 'price_changed' | 'retry_gemini' }>;
+  toInspect: Array<{ item: RawListing; reason: 'new' | 'price_changed' | 'title_changed' | 'retry_gemini' }>;
   unchangedCount: number;
 }> {
   if (!db) initFirebase();
   if (items.length === 0) return { toInspect: [], unchangedCount: 0 };
 
-  const toInspect: Array<{ item: RawListing; reason: 'new' | 'price_changed' | 'retry_gemini' }> = [];
+  const toInspect: Array<{ item: RawListing; reason: 'new' | 'price_changed' | 'title_changed' | 'retry_gemini' }> = [];
   let unchangedCount = 0;
   let batch = db.batch();
   let batchOps = 0;
@@ -131,6 +131,11 @@ export async function classifyDiscoveredListings(items: RawListing[]): Promise<{
 
       if (existing.rawPrice && item.rawPrice && existing.rawPrice.trim() !== item.rawPrice.trim()) {
         toInspect.push({ item, reason: 'price_changed' });
+        continue;
+      }
+
+      if (existing.title && item.title && existing.title.trim() !== item.title.trim()) {
+        toInspect.push({ item, reason: 'title_changed' });
         continue;
       }
 

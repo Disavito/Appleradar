@@ -92,20 +92,37 @@ Analiza el siguiente anuncio de Facebook Marketplace encontrado con la palabra c
 - DESCRIPCIÓN: "${description}"
 - UBICACIÓN PUBLICADA: "${locationText}"
 
-OBJETIVOS:
-1. Categoría exacta: 'MacBook Pro', 'MacBook Air', 'MacBook', 'Mac Mini', 'iMac', 'Mac Studio', 'iPad', 'iPhone', u 'Otro'.
-2. Chip principal: 'M1', 'M2', 'M3', 'M4', 'M5', 'Intel i9', 'Intel i7', 'Intel i5', 'A-Series', o 'Desconocido'.
-3. Variante del chip Apple Silicon: 'Base' (si es M1/M2/M3/M4 normal), 'Pro' (si es M1 Pro, M2 Pro, M3 Pro, M4 Pro), 'Max' (M1/M2/M3/M4 Max), 'Ultra' (M1/M2 Ultra), o 'N/A' si es Intel/A-Series/Desconocido.
-4. Tamaño de pantalla en pulgadas (ej: 6.1, 6.7, 11, 12.9, 13, 14, 15, 16, 24, 27 o null para Mac Mini/Studio).
-5. Memoria RAM en GB (ej: 8, 16, 18, 24, 32, 36, 48, 64, 96, 128 o null).
-6. Almacenamiento SSD en GB (ej: 128, 256, 512, 1000 para 1TB, 2000 para 2TB, 4000 para 4TB o null).
-7. Indica si incluye caja original (true/false) y si incluye cargador (true/false).
-8. Ciclos de batería en número y porcentaje de batería si se menciona (ej: 94), de lo contrario null.
-9. Condición estética: 'Sellado', 'Como nuevo', 'Buen estado', 'Con detalle', o 'No indica'.
-10. Moneda: 'PEN' o 'USD'. Si está en USD ($), conviértelo a Soles (tipo de cambio ~3.75).
-11. Si el PRECIO PUBLICADO es gancho (S/ 1, S/ 0, S/ 123), busca el precio real en DESCRIPCIÓN o TÍTULO. Si lo encuentras, ponlo en 'precio_normalizado_pen', pon 'es_precio_gancho: false' y 'price_corrected: true'. Si no hay precio real, pon 'es_precio_gancho: true' y 'price_corrected: false'.
-12. Distrito o zona específica del vendedor (ej: "Miraflores", "Cayma", "Wanchaq").
-13. De 2 a 5 'tags' cortos y útiles en español (ej: ["M2 Max", "64GB RAM", "Sellado", "Garantía Apple"]).
+REGLAS ESTRICTAS DE CLASIFICACIÓN (MUY IMPORTANTE):
+1. CATEGORÍA DEL EQUIPO PRINCIPAL ('categoria'):
+   - Identifica el EQUIPO PRINCIPAL en venta, ignorando accesorios incluidos de regalo o combo (ej: "Mac Mini M4 + Hub Ugreen" es 'Mac Mini'; "MacBook Air M2 + funda + adaptador" es 'MacBook Air').
+   - Ignora frases de compatibilidad (ej: si vende una MacBook y dice "compatible con iPad/iPhone", sigue siendo 'MacBook Pro' o 'MacBook Air').
+   - Si el anuncio vende ÚNICAMENTE un accesorio suelto (solo cargador, solo hub, solo funda, solo caja vacía, solo cable, sin computador/tablet/teléfono), usa 'Otro' y pon el tag "Solo Accesorio".
+   - Valores permitidos: 'MacBook Pro', 'MacBook Air', 'MacBook', 'Mac Mini', 'iMac', 'Mac Studio', 'iPad', 'iPhone', u 'Otro'.
+
+2. CHIP Y VARIANTE ('chip' y 'chip_variante'):
+   - ¡NO confundas la línea "MacBook Pro" con el chip "M1 Pro"!
+     * "MacBook Pro 13 M1" -> chip: 'M1', chip_variante: 'Base'.
+     * "MacBook Pro 14 M1 Pro" o "con chip M1 Pro" -> chip: 'M1', chip_variante: 'Pro'.
+     * "M1 Max", "M2 Max", "M3 Max", "M4 Max" -> chip_variante: 'Max'.
+     * "M1 Ultra", "M2 Ultra" -> chip_variante: 'Ultra'.
+   - Si es Intel Core i9 -> chip: 'Intel i9', chip_variante: 'N/A'. Igual para 'Intel i7' e 'Intel i5'.
+   - Si es iPhone o iPad sin chip M (ej. A15, A16, A17 Pro, A18) -> chip: 'A-Series', chip_variante: 'N/A'.
+
+3. HARDWARE Y EXTRAS:
+   - 'pulgadas': número de pantalla (ej: 6.1, 6.7, 11, 12.9, 13, 14, 15, 16, 24, 27) o null para Mac Mini / Mac Studio.
+   - 'ram_gb': entero en GB (4, 8, 16, 18, 24, 32, 36, 48, 64, 96, 128) o null si no se indica.
+   - 'almacenamiento_gb': entero en GB (64, 128, 256, 512, 1000 para 1TB, 2000 para 2TB, 4000 para 4TB) o null.
+   - 'incluye_caja' y 'incluye_cargador': booleanos.
+   - 'ciclos_bateria' y 'porcentaje_bateria': enteros si se mencionan, si no null.
+   - 'condicion_estetica': 'Sellado', 'Como nuevo', 'Buen estado', 'Con detalle', o 'No indica'.
+
+4. PRECIO Y MONEDA:
+   - 'moneda': 'PEN' o 'USD'. Si está en USD ($), convierte a Soles (~3.75).
+   - Si el PRECIO PUBLICADO es gancho (S/ 1, S/ 0, S/ 123), busca el precio real en DESCRIPCIÓN o TÍTULO. Si lo encuentras, ponlo en 'precio_normalizado_pen', pon 'es_precio_gancho: false' y 'price_corrected: true'. Si no hay precio real en ningún lado, pon 'es_precio_gancho: true' y 'price_corrected: false'.
+
+5. UBICACIÓN Y TAGS:
+   - 'distrito_ciudad': distrito o zona específica del vendedor (ej: "Miraflores", "Cayma", "Wanchaq").
+   - 'tags': 2 a 5 etiquetas cortas en español (ej: ["Con Hub Ugreen", "Sellado", "Batería 100%"]).
 `;
 
   try {

@@ -103,19 +103,34 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
   const titleLower = (item.title || '').toLowerCase();
 
   let family: ScrapedProduct['family'] = 'MacBook';
-  if (cat === 'Mac Mini' || titleLower.includes('mac mini')) family = 'Mac Mini';
-  else if (cat === 'iMac' || titleLower.includes('imac')) family = 'iMac';
-  else if (cat === 'Mac Studio' || titleLower.includes('mac studio')) family = 'Mac Studio';
-  else if (cat.includes('iPad') || titleLower.includes('ipad')) family = 'iPad';
-  else if (cat.includes('iPhone') || titleLower.includes('iphone')) family = 'iPhone';
-  else if (titleLower.includes('neo')) family = 'Neo';
-  else if (cat === 'Otro' && !titleLower.includes('macbook')) family = 'Otro';
+  if (cat === 'Mac Mini') family = 'Mac Mini';
+  else if (cat === 'iMac') family = 'iMac';
+  else if (cat === 'Mac Studio') family = 'Mac Studio';
+  else if (cat === 'iPad') family = 'iPad';
+  else if (cat === 'iPhone') family = 'iPhone';
+  else if (cat === 'MacBook Pro' || cat === 'MacBook Air' || cat === 'MacBook') {
+    family = titleLower.includes('neo') ? 'Neo' : 'MacBook';
+  } else if (cat === 'Otro') {
+    family = 'Otro';
+  } else {
+    // Fallback solo si no hay categoria de Gemini
+    if (titleLower.includes('mac mini')) family = 'Mac Mini';
+    else if (titleLower.includes('imac')) family = 'iMac';
+    else if (titleLower.includes('mac studio')) family = 'Mac Studio';
+    else if (titleLower.includes('ipad')) family = 'iPad';
+    else if (titleLower.includes('iphone')) family = 'iPhone';
+    else if (titleLower.includes('neo')) family = 'Neo';
+  }
 
   let line: ScrapedProduct['line'] = 'Standard';
-  if (cat.includes('Pro') || titleLower.includes('pro')) line = 'Pro';
-  else if (cat.includes('Air') || titleLower.includes('air')) line = 'Air';
-  else if (titleLower.includes('mini')) line = 'Mini';
-  else if (titleLower.includes('max')) line = 'Max';
+  if (cat === 'MacBook Pro') line = 'Pro';
+  else if (cat === 'MacBook Air') line = 'Air';
+  else if (family === 'MacBook' && titleLower.includes('pro')) line = 'Pro';
+  else if (family === 'MacBook' && titleLower.includes('air')) line = 'Air';
+  else if ((family === 'iPad' || family === 'iPhone') && titleLower.includes('pro')) line = 'Pro';
+  else if (family === 'iPad' && titleLower.includes('air')) line = 'Air';
+  else if ((family === 'iPad' || family === 'iPhone') && titleLower.includes('mini')) line = 'Mini';
+  else if (family === 'iPhone' && titleLower.includes('max')) line = 'Max';
 
   const chip = item.chip || 'Desconocido';
   const chipVariant = item.chip_variante && item.chip_variante !== 'N/A' && item.chip_variante !== 'Base'
