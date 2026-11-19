@@ -10,24 +10,34 @@ export function initFirebase() {
   if (admin.apps.length === 0) {
     let credential;
 
-    // 1. Verificar si viene JSON en string directo
-    if (CONFIG.firebaseServiceAccount && CONFIG.firebaseServiceAccount.trim().startsWith('{')) {
-      const creds = JSON.parse(CONFIG.firebaseServiceAccount);
-      credential = admin.credential.cert(creds);
-    } 
-    // 2. Verificar si es una ruta especificada
-    else if (CONFIG.firebaseServiceAccount) {
-      const resolvedPath = path.resolve(process.cwd(), CONFIG.firebaseServiceAccount);
-      if (fs.existsSync(resolvedPath)) {
-        credential = admin.credential.cert(resolvedPath);
+    // 1. Prioridad: Buscar serviceAccountKey.json físico copiado en la app
+    const candidates = [
+      path.resolve(process.cwd(), 'serviceAccountKey.json'),
+      path.resolve(__dirname, '../serviceAccountKey.json'),
+      path.resolve('/app/serviceAccountKey.json')
+    ];
+
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        try {
+          const keyData = JSON.parse(fs.readFileSync(p, 'utf8'));
+          credential = admin.credential.cert(keyData);
+          console.log(`🔑 Clave Firebase cargada exitosamente desde: ${p}`);
+          break;
+        } catch (e) {
+          console.warn(`Error leyendo archivo de clave en ${p}:`, e);
+        }
       }
     }
 
-    // 3. Fallback: buscar serviceAccountKey.json en la raíz del worker si no se encontró arriba
-    if (!credential) {
-      const localKeyPath = path.resolve(process.cwd(), 'serviceAccountKey.json');
-      if (fs.existsSync(localKeyPath)) {
-        credential = admin.credential.cert(localKeyPath);
+    // 2. Si no se cargó por archivo, verificar variable de entorno
+    if (!credential && CONFIG.firebaseServiceAccount && CONFIG.firebaseServiceAccount.trim().startsWith('{')) {
+      try {
+        const creds = JSON.parse(CONFIG.firebaseServiceAccount);
+        credential = admin.credential.cert(creds);
+        console.log('🔑 Clave Firebase cargada exitosamente desde FIREBASE_SERVICE_ACCOUNT (env).');
+      } catch (e) {
+        console.warn('Error parseando FIREBASE_SERVICE_ACCOUNT env:', e);
       }
     }
 
@@ -36,9 +46,9 @@ export function initFirebase() {
         credential,
         projectId: 'macradar-7268f'
       });
-      console.log('🔥 Conectado con éxito a Firebase Firestore (macradar-7268f)');
+      console.log('🔥 Conectado con credenciales válidas a Firebase Firestore (macradar-7268f)');
     } else {
-      console.warn('⚠️ No se encontró serviceAccountKey.json. Usando credenciales de entorno por defecto.');
+      console.error('❌ NO se encontraron credenciales válidas de Firebase Admin SDK.');
       admin.initializeApp({ projectId: 'macradar-7268f' });
     }
   }
