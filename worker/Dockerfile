@@ -53,6 +53,7 @@ RUN npx patchright install chromium
 COPY tsconfig.json ./
 COPY src ./src
 COPY fb_cookies*.json ./
+COPY serviceAccountKey*.json ./
 
 # Compilar TypeScript a JavaScript
 RUN npm run build
