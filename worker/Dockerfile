@@ -49,9 +49,10 @@ RUN npm install
 # Instalar los binarios de navegación de patchright
 RUN npx patchright install chromium
 
-# Copiar el código fuente
+# Copiar el código fuente y archivos de configuración
 COPY tsconfig.json ./
 COPY src ./src
+COPY fb_cookies*.json ./
 
 # Compilar TypeScript a JavaScript
 RUN npm run build
