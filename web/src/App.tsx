@@ -94,6 +94,7 @@ export function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [pushStatus, setPushStatus] = useState<NotificationPermission>('default');
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [selectedChip, setSelectedChip] = useState<string>('ALL');
 
   // Mapa en memoria para detectar cambios de precio o nuevas publicaciones en tiempo real
   const previousListingsRef = useRef<Map<string, number>>(new Map());
@@ -111,7 +112,7 @@ export function App() {
     const result = await requestNotificationPermission();
     setPushStatus(result);
     if (result === 'granted') {
-      showPushNotification('🔔 MacRadar Pro Activado', {
+      showPushNotification('🔔 AppleRadar Activado', {
         body: 'Recibirás notificaciones push al instante cuando baje el precio de un equipo o aparezca una oferta.',
         data: { url: window.location.href }
       });
@@ -141,17 +142,14 @@ export function App() {
                 const prevPrice = previousListingsRef.current.get(item.listingId);
                 const currentPrice = item.precio_normalizado_pen;
 
-                // 1. Detección de Bajada de Precio
                 if (prevPrice !== undefined && currentPrice < prevPrice && !item.es_precio_gancho && currentPrice > 100) {
                   const savings = prevPrice - currentPrice;
-                  showPushNotification(`🚨 ¡Bajó de precio! MacBook Pro ${item.chip}`, {
+                  showPushNotification(`🚨 ¡Bajó de precio! ${item.categoria || 'Apple'} ${item.chip}`, {
                     body: `Ahorro de S/ ${savings.toLocaleString('es-PE')}. Nuevo precio: S/ ${currentPrice.toLocaleString('es-PE')} en ${item.city}`,
                     data: { url: item.itemUrl }
                   });
-                }
-                // 2. Nuevo Anuncio publicado
-                else if (prevPrice === undefined && !item.es_precio_gancho && currentPrice > 500) {
-                  showPushNotification(`✨ Nueva MacBook Pro ${item.chip} (${item.city})`, {
+                } else if (prevPrice === undefined && !item.es_precio_gancho && currentPrice > 500) {
+                  showPushNotification(`✨ Nuevo ${item.categoria || 'Equipo'} ${item.chip} (${item.city})`, {
                     body: `S/ ${currentPrice.toLocaleString('es-PE')} - ${item.title.slice(0, 60)}...`,
                     data: { url: item.itemUrl }
                   });
@@ -159,7 +157,6 @@ export function App() {
               }
             }
 
-            // Actualizar mapa de precios anteriores
             const newMap = new Map<string, number>();
             items.forEach((it) => newMap.set(it.listingId, it.precio_normalizado_pen));
             previousListingsRef.current = newMap;
@@ -189,66 +186,66 @@ export function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col">
+    <div className="min-h-screen bg-[#0a0a0c] text-[#f4f4f6] flex flex-col">
       {/* Header */}
-      <header className="border-b border-zinc-800 bg-[#121214]/80 backdrop-blur sticky top-0 z-50 px-4 sm:px-6 py-4">
+      <header className="border-b border-white/[0.07] bg-[#0a0a0c]/90 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-6 py-3.5">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-cyan-400">
-              <Radar className="w-6 h-6 animate-pulse" />
+            <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-sky-400">
+              <Radar className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                MacRadar <span className="text-xs px-2 py-0.5 font-normal rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">Pro</span>
+              <h1 className="text-base font-semibold tracking-tight text-white">
+                AppleRadar
               </h1>
               <p className="text-xs text-zinc-400">
-                Monitoreo en todo el Perú • MacBook Pro, Air, Neo, iPad & más
+                Mercado Apple en Perú · MacBook Pro, Air, Neo, iPad
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Botón de Configuración (Zonas, Keywords, Modelo Gemini) */}
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 font-medium rounded-lg text-xs transition"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16161a] hover:bg-[#1e1e24] text-zinc-100 border border-white/[0.08] font-medium rounded-lg text-xs transition"
               title="Elegir ciudades del Perú, palabras clave y modelo Gemini"
             >
-              <Settings className="w-3.5 h-3.5 text-cyan-400" />
+              <Settings className="w-3.5 h-3.5 text-zinc-300" />
               <span>Configurar Radar</span>
             </button>
 
-            {/* Botón de Notificaciones Push Web / Celular */}
             {pushStatus !== 'granted' ? (
               <button
                 onClick={handleEnablePush}
-                className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium rounded-lg text-xs transition shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded-lg text-xs transition"
                 title="Activar notificaciones push en esta pantalla o celular"
               >
-                <Bell className="w-4 h-4 animate-bounce" />
+                <Bell className="w-3.5 h-3.5" />
                 <span>Activar Push</span>
               </button>
             ) : (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium rounded-lg text-xs">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-medium rounded-lg text-xs">
                 <BellRing className="w-3.5 h-3.5" />
                 <span>Push Activo</span>
               </div>
             )}
 
-            <div className="flex items-center gap-2 text-xs bg-zinc-900 border border-zinc-800 px-2.5 py-1.5 rounded-lg">
-              <span className="flex h-2 w-2 relative">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isConnected ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-              </span>
+            <div className="hidden sm:flex items-center gap-2 text-xs bg-[#111114] border border-white/[0.07] px-2.5 py-1.5 rounded-lg">
+              <span
+                className={`inline-block rounded-full h-2 w-2 ${
+                  isConnected ? 'bg-emerald-500' : 'bg-amber-500'
+                }`}
+              />
               <span className="text-zinc-400 font-medium">
-                {isConnected ? 'Firestore en Vivo' : 'Modo Preview'}
+                {isConnected ? 'En vivo' : 'Preview'}
               </span>
             </div>
 
             <button
               onClick={() => window.location.reload()}
-              className="p-2 text-zinc-400 hover:text-white bg-zinc-800/80 hover:bg-zinc-700 rounded-lg transition"
+              className="p-1.5 text-zinc-400 hover:text-white bg-[#16161a] hover:bg-[#1e1e24] border border-white/[0.08] rounded-lg transition"
               title="Refrescar vista"
+              aria-label="Refrescar vista"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -257,16 +254,24 @@ export function App() {
       </header>
 
       {/* Contenido Principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-zinc-500 space-y-3">
-            <Radio className="w-8 h-8 animate-spin text-cyan-500" />
-            <p className="text-sm">Sintonizando señal de Marketplace...</p>
+          <div className="flex flex-col items-center justify-center py-24 text-zinc-500 space-y-3">
+            <Radio className="w-7 h-7 animate-spin text-sky-500" />
+            <p className="text-xs font-medium">Cargando mercado en tiempo real...</p>
           </div>
         ) : (
           <>
-            <MetricsCards listings={listings} />
-            <ListingsTable listings={listings} />
+            <MetricsCards
+              listings={listings}
+              selectedChip={selectedChip}
+              onSelectChip={setSelectedChip}
+            />
+            <ListingsTable
+              listings={listings}
+              selectedChip={selectedChip}
+              onSelectChip={setSelectedChip}
+            />
           </>
         )}
       </main>
@@ -274,8 +279,8 @@ export function App() {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* Footer */}
-      <footer className="border-t border-zinc-800/80 py-4 px-6 text-center text-xs text-zinc-500">
-        MacRadar Pro • Notificaciones Push PWA para PC y Móvil • Sin depender de Telegram
+      <footer className="border-t border-white/[0.06] py-4 px-6 text-center text-[11px] text-zinc-500">
+        AppleRadar · Monitoreo autónomo de precios en tiempo real
       </footer>
     </div>
   );

@@ -43,6 +43,8 @@ export interface ListingItem {
   priceDropCount?: number;
   geminiModelUsed?: string;
   analyzedWithGemini?: boolean;
+  description?: string;
+  locationText?: string;
   itemUrl: string;
   scrapedAt: string;
   lastSeenAt?: string;
