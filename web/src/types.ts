@@ -86,6 +86,7 @@ export interface ScrapedProduct {
   locationFormatted: string;
   publishedAt: string;
   publishedText: string;
+  isNew24h: boolean;
   pricePen: number;
   currency: 'PEN' | 'USD';
   price_corrected: boolean;
@@ -155,6 +156,9 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
   const isHook = Boolean(item.es_precio_gancho || item.precio_normalizado_pen <= 50);
   const isCorrected = Boolean(item.price_corrected && !isHook);
 
+  const scrapedMs = item.scrapedAt ? new Date(item.scrapedAt).getTime() : 0;
+  const isNew24h = scrapedMs > 0 && Date.now() - scrapedMs <= 24 * 3600 * 1000;
+
   return {
     id: item.id || item.listingId,
     listingId: item.listingId,
@@ -175,6 +179,7 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
     locationFormatted,
     publishedAt: item.publishedAtEstimated || item.scrapedAt || new Date().toISOString(),
     publishedText: item.publishedText || '',
+    isNew24h,
     pricePen: item.precio_normalizado_pen || 0,
     currency: item.moneda || 'PEN',
     price_corrected: isCorrected,

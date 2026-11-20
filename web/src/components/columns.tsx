@@ -47,6 +47,11 @@ export const marketColumns: ColumnDef<ScrapedProduct>[] = [
                 {p.condition}
               </span>
             )}
+            {p.isNew24h && p.status !== 'sold' && (
+              <span className="px-2 py-0.5 text-[11px] font-semibold rounded-md bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
+                Nuevo
+              </span>
+            )}
             {p.status === 'sold' && (
               <span className="px-2 py-0.5 text-[11px] font-semibold rounded-md bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300">
                 Vendido

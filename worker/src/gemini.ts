@@ -49,6 +49,7 @@ function getGenerativeModel(modelName: string) {
           precio_normalizado_pen: { type: SchemaType.NUMBER },
           es_precio_gancho: { type: SchemaType.BOOLEAN },
           price_corrected: { type: SchemaType.BOOLEAN },
+          ciudad_real: { type: SchemaType.STRING },
           distrito_ciudad: { type: SchemaType.STRING },
           tags: {
             type: SchemaType.ARRAY,
@@ -66,6 +67,7 @@ function getGenerativeModel(modelName: string) {
           'precio_normalizado_pen',
           'es_precio_gancho',
           'price_corrected',
+          'ciudad_real',
           'distrito_ciudad',
           'tags'
         ]
@@ -120,8 +122,9 @@ REGLAS ESTRICTAS DE CLASIFICACIÓN (MUY IMPORTANTE):
    - 'moneda': 'PEN' o 'USD'. Si está en USD ($), convierte a Soles (~3.75).
    - Si el PRECIO PUBLICADO es gancho (S/ 1, S/ 0, S/ 123), busca el precio real en DESCRIPCIÓN o TÍTULO. Si lo encuentras, ponlo en 'precio_normalizado_pen', pon 'es_precio_gancho: false' y 'price_corrected: true'. Si no hay precio real en ningún lado, pon 'es_precio_gancho: true' y 'price_corrected: false'.
 
-5. UBICACIÓN Y TAGS:
-   - 'distrito_ciudad': distrito o zona específica del vendedor (ej: "Miraflores", "Cayma", "Wanchaq").
+5. UBICACIÓN EXACTA EN PERÚ ('ciudad_real' y 'distrito_ciudad'):
+   - 'ciudad_real': la CIUDAD o DEPARTAMENTO principal del Perú donde realmente se encuentra el anuncio (ej: "Lima", "Arequipa", "Trujillo", "Cusco", "Puno", "Moquegua", "Juliaca", "Tacna", "Ica", "Piura", "Chiclayo", "Huancayo", "Cajamarca", "Chimbote", "Ilo"). ¡Si la ubicación dice "Puno" o "Moquegua" aunque la búsqueda haya sido desde Arequipa, pon "Puno" o "Moquegua" en 'ciudad_real'!
+   - 'distrito_ciudad': SOLO el distrito si existe (ej: "Miraflores", "Cayma", "Wanchaq", "Surco", "Yanahuara"), o cadena vacía "" si solo se conoce la ciudad.
    - 'tags': 2 a 5 etiquetas cortas en español (ej: ["Con Hub Ugreen", "Sellado", "Batería 100%"]).
 `;
 
@@ -150,7 +153,8 @@ REGLAS ESTRICTAS DE CLASIFICACIÓN (MUY IMPORTANTE):
         precio_normalizado_pen: 0,
         es_precio_gancho: true,
         price_corrected: false,
-        distrito_ciudad: locationText || 'Perú',
+        ciudad_real: locationText || 'Perú',
+        distrito_ciudad: '',
         tags: []
       }
     };

@@ -112,9 +112,15 @@ async function runScrapingCycle() {
           );
 
           const nowIso = new Date().toISOString();
+          const detectedCity =
+            specs.ciudad_real && specs.ciudad_real.trim() && specs.ciudad_real.trim() !== 'Perú'
+              ? specs.ciudad_real.trim()
+              : detailedItem.city;
+
           const firestoreRecord: FirestoreListing = {
             ...detailedItem,
             ...specs,
+            city: detectedCity,
             currentPrice: specs.precio_normalizado_pen,
             status: detailedItem.isSold ? 'sold' : 'active',
             matchedKeywords: [rawItem.searchTerm],

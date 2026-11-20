@@ -36,6 +36,7 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
   const [onlyBox, setOnlyBox] = useState(false);
   const [onlyCharger, setOnlyCharger] = useState(false);
   const [onlyPriceDrops, setOnlyPriceDrops] = useState(false);
+  const [onlyNew24h, setOnlyNew24h] = useState(false);
   const [hideHooks, setHideHooks] = useState(false);
   const [hideSold, setHideSold] = useState(true);
   const [highlightItem, setHighlightItem] = useState<ListingItem | null>(null);
@@ -101,6 +102,7 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
       if (onlyBox && !p.includes.includes('Caja')) return false;
       if (onlyCharger && !p.includes.includes('Cargador')) return false;
       if (onlyPriceDrops && p.priceDropCount === 0) return false;
+      if (onlyNew24h && !p.isNew24h) return false;
       if (hideHooks && p.hook_price) return false;
       if (hideSold && p.status === 'sold') return false;
 
@@ -140,6 +142,7 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
     onlyBox,
     onlyCharger,
     onlyPriceDrops,
+    onlyNew24h,
     hideHooks,
     hideSold
   ]);
@@ -226,6 +229,7 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
     onlyBox ||
     onlyCharger ||
     onlyPriceDrops ||
+    onlyNew24h ||
     hideHooks;
 
   const clearAll = () => {
@@ -239,6 +243,7 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
     setOnlyBox(false);
     setOnlyCharger(false);
     setOnlyPriceDrops(false);
+    setOnlyNew24h(false);
     setHideHooks(false);
   };
 
@@ -407,6 +412,18 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
             }`}
           >
             {onlyPriceDrops ? '✓ ' : ''}Bajadas de Precio
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setOnlyNew24h(!onlyNew24h)}
+            className={`h-7 px-2.5 rounded-md border font-medium transition ${
+              onlyNew24h
+                ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-500/15 dark:border-amber-400/50 dark:text-amber-300'
+                : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-[#18181b] dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-zinc-200'
+            }`}
+          >
+            {onlyNew24h ? '✓ ' : ''}Solo Nuevos (24h)
           </button>
 
           <button

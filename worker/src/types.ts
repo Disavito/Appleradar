@@ -72,6 +72,7 @@ export interface ExtractedMacSpecs {
   precio_normalizado_pen: number;
   es_precio_gancho: boolean;
   price_corrected?: boolean;
+  ciudad_real: string;
   distrito_ciudad: string;
   tags: string[];
 }
