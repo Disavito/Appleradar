@@ -11,10 +11,12 @@ interface Props {
 
 const FAMILY_TABS = [
   { id: 'ALL', label: 'Todas' },
-  { id: 'MacBook', label: 'MacBooks' },
+  { id: 'MacBook Air', label: 'MacBook Air' },
+  { id: 'MacBook Pro', label: 'MacBook Pro' },
   { id: 'Desktop', label: 'Mac Mini / iMac' },
   { id: 'iPad', label: 'iPads' },
-  { id: 'iPhone', label: 'iPhones' }
+  { id: 'iPhone', label: 'iPhones' },
+  { id: 'Sin clasificar', label: 'Sin clasificar' }
 ] as const;
 
 function calcMedian(sortedAsc: number[]): number | null {
@@ -84,22 +86,18 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
 
     return products.filter((p) => {
       if (selectedFamily !== 'ALL') {
-        if (selectedFamily === 'MacBook' && p.family !== 'MacBook' && p.family !== 'Neo') {
-          return false;
-        }
-        if (
-          selectedFamily === 'Desktop' &&
-          p.family !== 'Mac Mini' &&
-          p.family !== 'iMac' &&
-          p.family !== 'Mac Studio'
-        ) {
-          return false;
-        }
-        if (
-          selectedFamily !== 'MacBook' &&
-          selectedFamily !== 'Desktop' &&
-          p.family !== selectedFamily
-        ) {
+        if (selectedFamily === 'MacBook Air') {
+          if (p.family !== 'MacBook' || p.line !== 'Air') return false;
+        } else if (selectedFamily === 'MacBook Pro') {
+          if (p.family !== 'MacBook' || p.line !== 'Pro') return false;
+        } else if (selectedFamily === 'Desktop') {
+          if (p.family !== 'Mac Mini' && p.family !== 'iMac' && p.family !== 'Mac Studio') {
+            return false;
+          }
+        } else if (selectedFamily === 'Sin clasificar') {
+          const isGenericMacbook = p.family === 'MacBook' && p.line === 'Standard';
+          if (p.family !== 'Otro' && !isGenericMacbook) return false;
+        } else if (p.family !== selectedFamily) {
           return false;
         }
       }

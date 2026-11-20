@@ -94,18 +94,26 @@ Analiza el siguiente anuncio de Facebook Marketplace encontrado con la palabra c
 - DESCRIPCIÓN: "${description}"
 - UBICACIÓN PUBLICADA: "${locationText}"
 
-REGLAS ESTRICTAS DE CLASIFICACIÓN (MUY IMPORTANTE):
-1. CATEGORÍA DEL EQUIPO PRINCIPAL ('categoria'):
+REGLAS ESTRICTAS DE CLASIFICACIÓN (PROHIBIDO ADIVINAR O ASUMIR):
+1. REGLA DE ORO — NO ASUMIR DATOS FALTANTES:
+   - Si un dato NO aparece explícitamente en el TÍTULO o DESCRIPCIÓN, déjalo vacío/desconocido:
+     * Si NO dice si es "Air" o "Pro" -> usa 'MacBook' (NO asumas Air ni Pro).
+     * Si NO dice el chip (M1, M2, M3, M4, M5, Intel i5/i7/i9, etc.) -> usa chip: 'Desconocido', chip_variante: 'N/A'.
+     * Si NO dice las pulgadas -> usa pulgadas: null (NO las deduzcas por el modelo).
+     * Si NO dice la RAM -> usa ram_gb: null.
+     * Si NO dice el almacenamiento -> usa almacenamiento_gb: null.
+
+2. CATEGORÍA DEL EQUIPO PRINCIPAL ('categoria'):
    - Identifica el EQUIPO PRINCIPAL en venta, ignorando accesorios incluidos de regalo o combo (ej: "Mac Mini M4 + Hub Ugreen" es 'Mac Mini'; "MacBook Air M2 + funda + adaptador" es 'MacBook Air').
    - Ignora frases de compatibilidad (ej: si vende una MacBook y dice "compatible con iPad/iPhone", sigue siendo 'MacBook Pro' o 'MacBook Air').
-   - SEPARA SIEMPRE 'MacBook Air' de 'MacBook Pro':
-     * Si menciona "Air" -> 'MacBook Air'.
-     * Si menciona "Pro", "Touch Bar", "14 pulgadas", "16 pulgadas", o tiene chip M1/M2/M3/M4 Pro o Max -> 'MacBook Pro'.
-     * Usa 'MacBook' SOLO si es la MacBook 12" antigua o es imposible saber si es Air o Pro.
+   - SEPARA ESTRICTAMENTE 'MacBook Air' de 'MacBook Pro':
+     * Solo usa 'MacBook Air' si dice explícitamente "Air".
+     * Solo usa 'MacBook Pro' si dice explícitamente "Pro".
+     * Si dice solo "MacBook" sin "Air" ni "Pro" -> usa 'MacBook'.
    - Si el anuncio vende ÚNICAMENTE un accesorio suelto (solo cargador, solo hub, solo funda, solo caja vacía, solo cable, sin computador/tablet/teléfono), usa 'Otro' y pon el tag "Solo Accesorio".
    - Valores permitidos: 'MacBook Pro', 'MacBook Air', 'MacBook', 'Mac Mini', 'iMac', 'Mac Studio', 'iPad', 'iPhone', u 'Otro'.
 
-2. CHIP Y VARIANTE ('chip' y 'chip_variante'):
+3. CHIP Y VARIANTE ('chip' y 'chip_variante'):
    - ¡NO confundas la línea "MacBook Pro" con el chip "M1 Pro"!
      * "MacBook Pro 13 M1" -> chip: 'M1', chip_variante: 'Base'.
      * "MacBook Pro 14 M1 Pro" o "chip M1 Pro" -> chip: 'M1', chip_variante: 'Pro'.
@@ -115,21 +123,19 @@ REGLAS ESTRICTAS DE CLASIFICACIÓN (MUY IMPORTANTE):
    - Si es Intel Core i9 -> chip: 'Intel i9', chip_variante: 'N/A'. Igual para 'Intel i7' e 'Intel i5'.
    - Si es iPhone o iPad sin chip M (ej. A15, A16, A17 Pro, A18) -> chip: 'A-Series', chip_variante: 'N/A'.
 
-3. HARDWARE Y PULGADAS ('pulgadas'):
-   - 'pulgadas': número decimal o entero de la pantalla. Extrae el tamaño si aparece (ej: 11, 12, 13, 13.3, 13.6, 14, 15, 15.3, 16, 21.5, 24, 27, 6.1, 6.7, 6.9, 10.9, 12.9).
-     * Si es un modelo Apple cuyo tamaño estándar es inequívoco aunque no lo escriba explícitamente: MacBook Air M1 -> 13.3; MacBook Pro 14 -> 14; MacBook Pro 16 -> 16; iMac M1/M3/M4 -> 24; iPhone 15/14/13 Pro Max -> 6.7.
-     * Solo usa null para 'Mac Mini', 'Mac Studio' o cuando realmente sea ambiguo (ej. "MacBook Air M2" sin decir 13 o 15).
-   - 'ram_gb': entero en GB (4, 8, 16, 18, 24, 32, 36, 48, 64, 96, 128) o null si no se indica.
-   - 'almacenamiento_gb': entero en GB (64, 128, 256, 512, 1000 para 1TB, 2000 para 2TB, 4000 para 4TB) o null.
+4. HARDWARE Y PULGADAS ('pulgadas'):
+   - 'pulgadas': número decimal o entero SOLO si está escrito en el título o descripción (ej: 11, 12, 13, 13.3, 13.6, 14, 15, 15.3, 16, 21.5, 24, 27, 6.1, 6.7, 6.9, 10.9, 12.9). Si no lo dice, usa null.
+   - 'ram_gb': entero en GB SOLO si está indicado, o null.
+   - 'almacenamiento_gb': entero en GB (64, 128, 256, 512, 1000 para 1TB, 2000 para 2TB, 4000 para 4TB) SOLO si está indicado, o null.
    - 'incluye_caja' y 'incluye_cargador': booleanos.
    - 'ciclos_bateria' y 'porcentaje_bateria': enteros si se mencionan, si no null.
    - 'condicion_estetica': 'Sellado', 'Como nuevo', 'Buen estado', 'Con detalle', o 'No indica'.
 
-4. PRECIO Y MONEDA:
+5. PRECIO Y MONEDA:
    - 'moneda': 'PEN' o 'USD'. Si está en USD ($), convierte a Soles (~3.75).
    - Si el PRECIO PUBLICADO es gancho (S/ 1, S/ 0, S/ 123), busca el precio real en DESCRIPCIÓN o TÍTULO. Si lo encuentras, ponlo en 'precio_normalizado_pen', pon 'es_precio_gancho: false' y 'price_corrected: true'. Si no hay precio real en ningún lado, pon 'es_precio_gancho: true' y 'price_corrected: false'.
 
-5. UBICACIÓN EXACTA EN PERÚ ('ciudad_real' y 'distrito_ciudad'):
+6. UBICACIÓN EXACTA EN PERÚ ('ciudad_real' y 'distrito_ciudad'):
    - 'ciudad_real': la CIUDAD o DEPARTAMENTO principal del Perú donde realmente se encuentra el anuncio (ej: "Lima", "Arequipa", "Trujillo", "Cusco", "Puno", "Moquegua", "Tacna", "Ica", "Piura", "Chiclayo", "Huancayo", "Cajamarca", "Chimbote", "Iquitos", "Pucallpa", "Ayacucho").
    - ¡MUY IMPORTANTE! Si el TÍTULO o UBICACIÓN menciona otra ciudad (ej: "Puno, PU", "Juliaca, PU" -> ciudad_real: "Puno", distrito_ciudad: "Juliaca"; "Ilo, MO" o "Moquegua, MO" -> ciudad_real: "Moquegua", distrito_ciudad: "Ilo"; "Tacna, TA" -> ciudad_real: "Tacna"; "Cusco, CU" -> ciudad_real: "Cusco"), SIEMPRE prioriza esa ciudad real en 'ciudad_real' aunque UBICACIÓN PUBLICADA diga "Arequipa" o "Lima".
    - 'distrito_ciudad': SOLO el distrito o ciudad secundaria si existe (ej: "Miraflores", "Cayma", "Juliaca", "Ilo", "Wanchaq", "Surco"), o cadena vacía "" si solo se conoce la ciudad principal.

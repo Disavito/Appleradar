@@ -91,7 +91,7 @@ async function runScrapingCycle() {
         const rawItem = entry.item;
         cityProcessed++;
         totalProcessed++;
-        const pauseMs = getRandomDelay(6, 12);
+        const pauseMs = getRandomDelay(3, 6);
         console.log(
           `\n[${loc.city} ${cityProcessed}/${toInspect.length}] (${entry.reason}) Esperando ${(pauseMs / 1000).toFixed(1)}s -> ${rawItem.listingId}...`
         );

@@ -104,7 +104,7 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
   const cat = item.categoria || item.category || '';
   const titleLower = (item.title || '').toLowerCase();
 
-  let family: ScrapedProduct['family'] = 'MacBook';
+  let family: ScrapedProduct['family'] = 'Otro';
   if (cat === 'Mac Mini') family = 'Mac Mini';
   else if (cat === 'iMac') family = 'iMac';
   else if (cat === 'Mac Studio') family = 'Mac Studio';
@@ -121,18 +121,18 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
     else if (titleLower.includes('mac studio')) family = 'Mac Studio';
     else if (titleLower.includes('ipad')) family = 'iPad';
     else if (titleLower.includes('iphone')) family = 'iPhone';
+    else if (titleLower.includes('macbook')) family = 'MacBook';
     else if (titleLower.includes('neo')) family = 'Neo';
   }
 
   let line: ScrapedProduct['line'] = 'Standard';
   if (cat === 'MacBook Pro') line = 'Pro';
   else if (cat === 'MacBook Air') line = 'Air';
-  else if (family === 'MacBook' && titleLower.includes('pro')) line = 'Pro';
-  else if (family === 'MacBook' && titleLower.includes('air')) line = 'Air';
-  else if ((family === 'iPad' || family === 'iPhone') && titleLower.includes('pro')) line = 'Pro';
-  else if (family === 'iPad' && titleLower.includes('air')) line = 'Air';
-  else if ((family === 'iPad' || family === 'iPhone') && titleLower.includes('mini')) line = 'Mini';
-  else if (family === 'iPhone' && titleLower.includes('max')) line = 'Max';
+  else if (cat === 'MacBook') line = 'Standard';
+  else if ((family === 'iPad' || family === 'iPhone') && /\bpro\b/.test(titleLower)) line = 'Pro';
+  else if (family === 'iPad' && /\bair\b/.test(titleLower)) line = 'Air';
+  else if ((family === 'iPad' || family === 'iPhone') && /\bmini\b/.test(titleLower)) line = 'Mini';
+  else if (family === 'iPhone' && /\bmax\b/.test(titleLower)) line = 'Max';
 
   const chip = item.chip || 'Desconocido';
   const chipVariant = item.chip_variante && item.chip_variante !== 'N/A' && item.chip_variante !== 'Base'

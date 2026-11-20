@@ -132,9 +132,20 @@ export async function markFbSessionExpired(expired: boolean): Promise<void> {
   );
 }
 
+function parseSimplePenPrice(rawPrice: string): number | null {
+  const txt = (rawPrice || '').trim();
+  if (!/^S\/\s*[\d.,]+$/i.test(txt)) return null;
+  // Facebook Peru usa punto como separador de miles: S/3.000 o S/ 2,500
+  const numStr = txt.replace(/^S\/\s*/i, '').replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.');
+  const val = Math.round(parseFloat(numStr));
+  return Number.isFinite(val) && val > 100 ? val : null;
+}
+
 /**
- * Clasifica los anuncios recolectados para evitar re-analizar los que no han cambiado.
- * Solo se re-inspeccionan si: son NUEVOS, cambió el rawPrice o falló Gemini antes.
+ * Clasifica los anuncios recolectados para evitar cuellos de botella.
+ * - Omite 'Otro' (solo accesorios) y 'sold'.
+ * - Si solo cambió el precio en Soles (>100), actualiza el precio directo en Firestore sin reabrir el anuncio ni llamar a Gemini.
+ * - Solo inspecciona con Playwright + Gemini si es NUEVO, falló Gemini antes, o cambió a precio USD/gancho.
  */
 export async function classifyDiscoveredListings(items: RawListing[]): Promise<{
   toInspect: Array<{ item: RawListing; reason: 'new' | 'price_changed' | 'title_changed' | 'retry_gemini' }>;
@@ -165,24 +176,61 @@ export async function classifyDiscoveredListings(items: RawListing[]): Promise<{
 
       const existing = snap.data() as Partial<FirestoreListing>;
 
+      if (existing.status === 'sold' || existing.categoria === 'Otro') {
+        unchangedCount++;
+        continue;
+      }
+
       if (existing.analyzedWithGemini === false) {
         toInspect.push({ item, reason: 'retry_gemini' });
         continue;
       }
 
-      if (existing.rawPrice && item.rawPrice && existing.rawPrice.trim() !== item.rawPrice.trim()) {
-        toInspect.push({ item, reason: 'price_changed' });
-        continue;
-      }
+      const nowIso = new Date().toISOString();
 
-      if (existing.title && item.title && existing.title.trim() !== item.title.trim()) {
-        toInspect.push({ item, reason: 'title_changed' });
+      // Si cambió el rawPrice en el listado, intentar actualización rápida de precio sin Playwright/Gemini
+      if (item.rawPrice && item.rawPrice !== 'No especificado' && existing.rawPrice !== item.rawPrice) {
+        const fastPen = parseSimplePenPrice(item.rawPrice);
+        const oldPrice = existing.precio_normalizado_pen || existing.currentPrice || 0;
+
+        if (fastPen !== null) {
+          const isDrop = oldPrice > 100 && fastPen < oldPrice;
+          const nextDropCount = (existing.priceDropCount || 0) + (isDrop ? 1 : 0);
+
+          if (isDrop) {
+            const historyRef = snap.ref.collection('historial_precios').doc();
+            batch.set(historyRef, {
+              previousPrice: oldPrice,
+              newPrice: fastPen,
+              changeDate: nowIso,
+              differencePen: oldPrice - fastPen
+            });
+            batchOps++;
+          }
+
+          batch.update(snap.ref, {
+            rawPrice: item.rawPrice,
+            precio_normalizado_pen: fastPen,
+            currentPrice: fastPen,
+            es_precio_gancho: false,
+            priceDropCount: nextDropCount,
+            lastSeenAt: nowIso,
+            updatedAt: nowIso,
+            matchedKeywords: admin.firestore.FieldValue.arrayUnion(item.searchTerm)
+          });
+          batchOps++;
+          unchangedCount++;
+          continue;
+        }
+
+        // Si cambió a USD o precio gancho (S/ 1), re-inspeccionar
+        toInspect.push({ item, reason: 'price_changed' });
         continue;
       }
 
       unchangedCount++;
       batch.update(snap.ref, {
-        lastSeenAt: new Date().toISOString(),
+        lastSeenAt: nowIso,
         matchedKeywords: admin.firestore.FieldValue.arrayUnion(item.searchTerm)
       });
       batchOps++;
