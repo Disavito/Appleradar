@@ -3,6 +3,9 @@ import { CONFIG } from './config';
 import { ScraperService } from './scraper';
 import {
   getOrInitScraperSettings,
+  getSavedFbCookies,
+  saveRefreshedFbCookies,
+  markFbSessionExpired,
   classifyDiscoveredListings,
   saveOrUpdateListing,
   initFirebase
@@ -138,6 +141,15 @@ async function runScrapingCycle() {
           console.error(`Error procesando item individual ${rawItem.listingId}:`, err);
         }
       }
+    }
+
+    if (scraper.loginWallDetected && totalProcessed === 0 && totalSkipped === 0) {
+      await markFbSessionExpired(true);
+      console.warn('⚠️ Se marcó la sesión de Facebook como expirada en Firestore para avisar en el Dashboard.');
+    } else {
+      const freshCookies = await context.cookies('https://www.facebook.com');
+      await saveRefreshedFbCookies(freshCookies);
+      console.log('🔄 Cookies de sesión refrescadas y respaldadas en Firestore.');
     }
 
     console.log(`\n✅ Ciclo finalizado exitosamente. Nuevos/Actualizados: ${totalProcessed} | Omitidos sin cambios: ${totalSkipped}`);

@@ -91,6 +91,47 @@ export async function getOrInitScraperSettings(): Promise<ScraperSettings> {
   };
 }
 
+export async function getSavedFbCookies(): Promise<{ cookies: any[]; rawString?: string; expired?: boolean } | null> {
+  if (!db) initFirebase();
+  const snap = await db.collection(CONFIG.settingsCollection).doc('fb_session').get();
+  if (!snap.exists) return null;
+  const data = snap.data() as any;
+  return {
+    cookies: Array.isArray(data.cookies) ? data.cookies : [],
+    rawString: typeof data.rawString === 'string' ? data.rawString : undefined,
+    expired: Boolean(data.expired)
+  };
+}
+
+export async function saveRefreshedFbCookies(cookies: any[]): Promise<void> {
+  if (!db) initFirebase();
+  const essentialNames = new Set(['c_user', 'xs', 'datr', 'fr', 'sb', 'presence', 'ps_l', 'ps_n']);
+  const filtered = cookies.filter((c) => essentialNames.has(c.name) && c.domain?.includes('facebook.com'));
+  const hasSession = filtered.some((c) => c.name === 'c_user') && filtered.some((c) => c.name === 'xs');
+  if (!hasSession) return;
+
+  await db.collection(CONFIG.settingsCollection).doc('fb_session').set(
+    {
+      cookies: filtered,
+      expired: false,
+      manualOverride: false,
+      updatedAt: new Date().toISOString()
+    },
+    { merge: true }
+  );
+}
+
+export async function markFbSessionExpired(expired: boolean): Promise<void> {
+  if (!db) initFirebase();
+  await db.collection(CONFIG.settingsCollection).doc('fb_session').set(
+    {
+      expired,
+      lastCheckedAt: new Date().toISOString()
+    },
+    { merge: true }
+  );
+}
+
 /**
  * Clasifica los anuncios recolectados para evitar re-analizar los que no han cambiado.
  * Solo se re-inspeccionan si: son NUEVOS, cambió el rawPrice o falló Gemini antes.

@@ -4,6 +4,7 @@ import { RawListing, DetailedListing } from './types';
 
 export class ScraperService {
   private browser: Browser | null = null;
+  public loginWallDetected = false;
 
   async initBrowser(): Promise<Browser> {
     const launchOptions: any = {
@@ -32,7 +33,29 @@ export class ScraperService {
     return this.browser;
   }
 
-  async createContext(): Promise<BrowserContext> {
+  private parseRawCookieString(raw: string): any[] {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      return JSON.parse(trimmed);
+    }
+    const result: any[] = [];
+    for (const part of trimmed.split(';')) {
+      const eqIdx = part.indexOf('=');
+      if (eqIdx > 0) {
+        const name = part.slice(0, eqIdx).trim();
+        const val = part.slice(eqIdx + 1).trim();
+        if (name && val) {
+          result.push({ name, value: val, domain: '.facebook.com', path: '/' });
+        }
+      }
+    }
+    return result;
+  }
+
+  async createContext(
+    firestoreSession?: { cookies: any[]; rawString?: string } | null
+  ): Promise<BrowserContext> {
     if (!this.browser) {
       await this.initBrowser();
     }
@@ -45,31 +68,18 @@ export class ScraperService {
       viewport: { width: 1366, height: 768 }
     });
 
-    // Cargar cookies de Facebook (prioridad: variable de entorno FB_COOKIES -> archivo fb_cookies.json)
+    // Cargar cookies: 1) Firestore (auto-rotadas o pegadas desde Dashboard), 2) Env FB_COOKIES, 3) fb_cookies.json
     try {
       let cookies: any[] = [];
 
-      if (process.env.FB_COOKIES && process.env.FB_COOKIES.trim().length > 0) {
-        if (process.env.FB_COOKIES.trim().startsWith('[')) {
-          cookies = JSON.parse(process.env.FB_COOKIES);
-        } else {
-          const parts = process.env.FB_COOKIES.split(';');
-          for (const part of parts) {
-            const eqIdx = part.indexOf('=');
-            if (eqIdx > 0) {
-              const name = part.slice(0, eqIdx).trim();
-              const val = part.slice(eqIdx + 1).trim();
-              if (name && val) {
-                cookies.push({
-                  name,
-                  value: val,
-                  domain: '.facebook.com',
-                  path: '/'
-                });
-              }
-            }
-          }
-        }
+      if (firestoreSession?.rawString && firestoreSession.rawString.trim().length > 0) {
+        cookies = this.parseRawCookieString(firestoreSession.rawString);
+        console.log(`🍪 Cargadas ${cookies.length} cookies actualizadas desde Dashboard/Firestore.`);
+      } else if (firestoreSession?.cookies && firestoreSession.cookies.length > 0) {
+        cookies = firestoreSession.cookies;
+        console.log(`🍪 Cargadas ${cookies.length} cookies auto-renovadas desde Firestore.`);
+      } else if (process.env.FB_COOKIES && process.env.FB_COOKIES.trim().length > 0) {
+        cookies = this.parseRawCookieString(process.env.FB_COOKIES);
         console.log(`🍪 Cargadas ${cookies.length} cookies desde variable FB_COOKIES.`);
       } else {
         const fs = require('fs');
@@ -220,6 +230,21 @@ export class ScraperService {
       },
       { cityName, searchTerm, category }
     );
+
+    if (rawItems.length === 0) {
+      const isLoginWall = await page.evaluate(() => {
+        const txt = (document.body.innerText || '').slice(0, 400);
+        return (
+          txt.includes('Iniciar sesión en Facebook') ||
+          txt.includes('Escanea el código QR') ||
+          txt.includes('Log in to Facebook')
+        );
+      });
+      if (isLoginWall) {
+        this.loginWallDetected = true;
+        console.warn('🔒 Sesión de Facebook expirada o bloqueada (muro de login detectado).');
+      }
+    }
 
     console.log(`📌 Encontrados ${rawItems.length} anuncios para "${searchTerm}" en ${cityName}`);
     return rawItems;

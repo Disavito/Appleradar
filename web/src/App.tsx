@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { db } from './firebase';
 import type { ListingItem } from './types';
 import { Dashboard } from './components/Dashboard';
 import { SettingsModal } from './components/SettingsModal';
-import { Radar, RefreshCw, Radio, Bell, BellRing, Settings, Sun, Moon } from 'lucide-react';
+import { Radar, RefreshCw, Radio, Bell, BellRing, Settings, Sun, Moon, KeyRound } from 'lucide-react';
 import { registerServiceWorker, requestNotificationPermission, showPushNotification } from './notifications';
 
 // Muestra de datos referencial
@@ -93,6 +93,8 @@ export function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [pushStatus, setPushStatus] = useState<NotificationPermission>('default');
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [settingsTab, setSettingsTab] = useState<'zones' | 'keywords' | 'model' | 'session'>('zones');
+  const [fbSessionExpired, setFbSessionExpired] = useState<boolean>(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('appleradar_theme');
     return saved === 'dark' ? 'dark' : 'light';
@@ -102,6 +104,23 @@ export function App() {
     document.documentElement.classList.toggle('dark', theme === 'dark');
     localStorage.setItem('appleradar_theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      doc(db, 'settings', 'fb_session'),
+      (snap) => {
+        if (snap.exists()) {
+          setFbSessionExpired(Boolean(snap.data()?.expired));
+        } else {
+          setFbSessionExpired(false);
+        }
+      },
+      () => {
+        // Ignorar si no hay conexión
+      }
+    );
+    return () => unsub();
+  }, []);
 
   // Mapa en memoria para detectar cambios de precio o nuevas publicaciones en tiempo real
   const previousListingsRef = useRef<Map<string, number>>(new Map());
@@ -213,7 +232,10 @@ export function App() {
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => {
+                setSettingsTab('zones');
+                setIsSettingsOpen(true);
+              }}
               className="inline-flex items-center gap-2 h-9 px-3.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 dark:bg-[#27272c] dark:hover:bg-[#303036] dark:text-zinc-100 dark:border-white/[0.1] font-medium rounded-lg text-[13px] transition"
               title="Elegir ciudades del Perú, palabras clave y modelo Gemini"
             >
@@ -274,6 +296,26 @@ export function App() {
 
       {/* Contenido Principal */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
+        {fbSessionExpired && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+            <div className="flex items-center gap-2.5 text-xs sm:text-sm">
+              <KeyRound className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>
+                <strong>Sesión de Facebook expirada:</strong> el scraper detectó el muro de inicio de sesión. Actualiza las cookies desde aquí sin reiniciar Coolify.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSettingsTab('session');
+                setIsSettingsOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white transition shrink-0"
+            >
+              Actualizar Sesión FB
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 text-zinc-500 dark:text-zinc-400 space-y-3">
             <Radio className="w-7 h-7 animate-spin text-zinc-600 dark:text-zinc-300" />
@@ -284,7 +326,11 @@ export function App() {
         )}
       </main>
 
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        initialTab={settingsTab}
+      />
 
       {/* Footer */}
       <footer className="border-t border-zinc-200 dark:border-white/[0.08] py-4 px-6 text-center text-[11px] text-zinc-500 dark:text-zinc-400">

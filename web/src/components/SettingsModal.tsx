@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { ScraperSettings } from '../types';
-import { X, Settings, MapPin, Search, Cpu, Plus, Trash2, Play, Save, CheckCircle2 } from 'lucide-react';
+import { X, Settings, MapPin, Search, Cpu, Plus, Trash2, Play, Save, CheckCircle2, KeyRound } from 'lucide-react';
 
 const DEFAULT_SETTINGS: ScraperSettings = {
   geminiModel: 'gemini-2.5-flash',
@@ -62,18 +62,25 @@ const CATEGORIES = ['MacBook Pro', 'MacBook Air', 'MacBook', 'Mac Mini', 'iMac',
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 'zones' | 'keywords' | 'model' | 'session';
 }
 
-export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
+export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, initialTab = 'zones' }) => {
   const [settings, setSettings] = useState<ScraperSettings>(DEFAULT_SETTINGS);
-  const [activeTab, setActiveTab] = useState<'zones' | 'keywords' | 'model'>('zones');
+  const [activeTab, setActiveTab] = useState<'zones' | 'keywords' | 'model' | 'session'>(initialTab);
   const [newTerm, setNewTerm] = useState('');
   const [newCategory, setNewCategory] = useState('MacBook Pro');
   const [newCity, setNewCity] = useState('');
   const [newCityPath, setNewCityPath] = useState('');
   const [customModel, setCustomModel] = useState('');
+  const [fbCookiesInput, setFbCookiesInput] = useState('');
+  const [fbExpired, setFbExpired] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
+
+  useEffect(() => {
+    if (isOpen) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
 
   useEffect(() => {
     const docRef = doc(db, 'settings', 'scraper');
@@ -91,7 +98,20 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       },
       () => {}
     );
-    return () => unsub();
+    const unsubSession = onSnapshot(
+      doc(db, 'settings', 'fb_session'),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() as any;
+          setFbExpired(Boolean(data.expired));
+        }
+      },
+      () => {}
+    );
+    return () => {
+      unsub();
+      unsubSession();
+    };
   }, []);
 
   useEffect(() => {
@@ -245,6 +265,21 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
           >
             <Cpu className="w-3.5 h-3.5" />
             <span>Modelo Gemini</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('session')}
+            className={`h-9 px-3.5 rounded-lg text-xs sm:text-[13px] font-medium inline-flex items-center gap-2 transition whitespace-nowrap ${
+              activeTab === 'session'
+                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                : fbExpired
+                  ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
+                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-white/[0.06]'
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Sesión FB {fbExpired ? '(!)' : ''}</span>
           </button>
         </div>
 
@@ -410,6 +445,38 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     className="w-full h-10 bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] rounded-lg px-3 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none font-mono-nums"
                   />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'session' && (
+            <div className="space-y-4">
+              <div
+                className={`p-3.5 rounded-xl border text-xs ${
+                  fbExpired
+                    ? 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/30 dark:border-red-500/30 dark:text-red-300'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-300'
+                }`}
+              >
+                {fbExpired
+                  ? '⚠️ La sesión de Facebook expiró. Pega unas cookies nuevas abajo y dale a "Guardar y Escanear" sin necesidad de entrar a Coolify.'
+                  : '✅ La sesión de Facebook está activa. El worker auto-renueva y guarda tus cookies automáticamente en Firestore después de cada ciclo.'}
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  Actualizar cookies de Facebook (opcional si ya funciona)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Pega aquí: c_user=...; xs=...; datr=...; sb=..."
+                  value={fbCookiesInput}
+                  onChange={(e) => setFbCookiesInput(e.target.value)}
+                  className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] rounded-lg p-3 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none font-mono-nums"
+                />
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  En tu navegador: F12 ➔ Application ➔ Cookies ➔ facebook.com (copia c_user y xs). No cierres sesión en esa pestaña; solo ciérrala con la X.
+                </p>
               </div>
             </div>
           )}
