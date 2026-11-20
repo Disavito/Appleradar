@@ -28,9 +28,11 @@ function calcMedian(sortedAsc: number[]): number | null {
 export const Dashboard: React.FC<Props> = ({ listings }) => {
   const [searchText, setSearchText] = useState('');
   const [selectedFamily, setSelectedFamily] = useState<string>('ALL');
+  const [selectedLine, setSelectedLine] = useState<string>('ALL');
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
   const [selectedChip, setSelectedChip] = useState<string>('ALL');
   const [selectedVariant, setSelectedVariant] = useState<string>('ALL');
+  const [selectedScreen, setSelectedScreen] = useState<string>('ALL');
   const [selectedRam, setSelectedRam] = useState<string>('ALL');
   const [selectedStorage, setSelectedStorage] = useState<string>('ALL');
   const [onlyBox, setOnlyBox] = useState(false);
@@ -47,6 +49,14 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
     const set = new Set<string>();
     products.forEach((p) => p.city && set.add(p.city));
     return Array.from(set).sort();
+  }, [products]);
+
+  const availableScreens = useMemo(() => {
+    const set = new Set<number>();
+    products.forEach((p) => {
+      if (p.screenSize) set.add(p.screenSize);
+    });
+    return Array.from(set).sort((a, b) => a - b);
   }, [products]);
 
   const availableRams = useMemo(() => {
@@ -94,9 +104,11 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
         }
       }
 
+      if (selectedLine !== 'ALL' && p.line !== selectedLine) return false;
       if (selectedCity !== 'ALL' && p.city !== selectedCity) return false;
       if (selectedChip !== 'ALL' && p.chip !== selectedChip) return false;
       if (selectedVariant !== 'ALL' && p.chipVariant !== selectedVariant) return false;
+      if (selectedScreen !== 'ALL' && p.screenSize !== Number(selectedScreen)) return false;
       if (selectedRam !== 'ALL' && p.ramGb !== Number(selectedRam)) return false;
       if (selectedStorage !== 'ALL' && p.storageGb !== Number(selectedStorage)) return false;
       if (onlyBox && !p.includes.includes('Caja')) return false;
@@ -112,6 +124,7 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
           p.family,
           p.line,
           p.chipDisplay,
+          p.screenSize ? `${p.screenSize}"` : '',
           p.condition,
           p.ramGb ? `${p.ramGb}gb` : '',
           p.storageGb ? `${p.storageGb}gb` : '',
@@ -134,9 +147,11 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
     products,
     searchText,
     selectedFamily,
+    selectedLine,
     selectedCity,
     selectedChip,
     selectedVariant,
+    selectedScreen,
     selectedRam,
     selectedStorage,
     onlyBox,
@@ -221,9 +236,11 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
   const hasActiveFilters =
     searchText.trim() !== '' ||
     selectedFamily !== 'ALL' ||
+    selectedLine !== 'ALL' ||
     selectedCity !== 'ALL' ||
     selectedChip !== 'ALL' ||
     selectedVariant !== 'ALL' ||
+    selectedScreen !== 'ALL' ||
     selectedRam !== 'ALL' ||
     selectedStorage !== 'ALL' ||
     onlyBox ||
@@ -235,9 +252,11 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
   const clearAll = () => {
     setSearchText('');
     setSelectedFamily('ALL');
+    setSelectedLine('ALL');
     setSelectedCity('ALL');
     setSelectedChip('ALL');
     setSelectedVariant('ALL');
+    setSelectedScreen('ALL');
     setSelectedRam('ALL');
     setSelectedStorage('ALL');
     setOnlyBox(false);
@@ -302,6 +321,20 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
 
           <div className="flex flex-wrap items-center gap-2">
             <select
+              value={selectedLine}
+              onChange={(e) => setSelectedLine(e.target.value)}
+              aria-label="Filtrar por línea"
+              className="h-9 bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] text-xs text-zinc-800 dark:text-zinc-100 rounded-lg px-2.5 focus:outline-none focus:border-zinc-400"
+            >
+              <option value="ALL">Línea: Todas</option>
+              <option value="Air">Air</option>
+              <option value="Pro">Pro</option>
+              <option value="Mini">Mini</option>
+              <option value="Max">Max</option>
+              <option value="Standard">Standard</option>
+            </select>
+
+            <select
               value={selectedChip}
               onChange={(e) => setSelectedChip(e.target.value)}
               aria-label="Filtrar por chip"
@@ -330,6 +363,20 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
               <option value="Pro">Pro</option>
               <option value="Max">Max</option>
               <option value="Ultra">Ultra</option>
+            </select>
+
+            <select
+              value={selectedScreen}
+              onChange={(e) => setSelectedScreen(e.target.value)}
+              aria-label="Filtrar por pulgadas"
+              className="h-9 bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-white/[0.1] text-xs text-zinc-800 dark:text-zinc-100 rounded-lg px-2.5 focus:outline-none focus:border-zinc-400"
+            >
+              <option value="ALL">Pulg.: Todas</option>
+              {availableScreens.map((s) => (
+                <option key={s} value={String(s)}>
+                  {s}"
+                </option>
+              ))}
             </select>
 
             <select

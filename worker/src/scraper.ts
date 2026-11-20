@@ -200,26 +200,43 @@ export class ScraperService {
           if (seenIds.has(listingId)) continue;
           seenIds.add(listingId);
 
-          const cardText = (link.textContent || '').trim();
-          const lines = cardText.split('\n').map((s) => s.trim()).filter((s) => s.length > 0);
+          const rawText = ((link as HTMLElement).innerText || link.textContent || '').trim();
+          const lines = rawText
+            .split('\n')
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0 && !/^(Recién publicado|Just listed)$/i.test(s));
 
           let rawPrice = '';
           let title = '';
+          let cardCity = '';
 
           for (const line of lines) {
-            if (/^(S\/|\$|PEN|USD|Gratis|\d+)/i.test(line) && !rawPrice) {
+            if (/^(S\/|US\$|\$|PEN|USD|Gratis)/i.test(line) && !rawPrice) {
               rawPrice = line;
-            } else if (line.length > 5 && !title && line !== rawPrice) {
+            } else if (/^[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+,\s*[A-Z]{2}$/.test(line)) {
+              cardCity = line;
+            } else if (line.length > 4 && !title && line !== rawPrice) {
               title = line;
             }
           }
 
+          let cleanTitle = (title || rawText.slice(0, 120))
+            .replace(/^(Recién publicado|Just listed)\s*/i, '')
+            .replace(/^(?:S\/\s*[\d.,]+|\$\s*[\d.,]+|US\$\s*[\d.,]+){1,2}\s*/i, '')
+            .trim();
+
+          const trailingCityMatch = cleanTitle.match(/([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?,\s*(?:PU|MO|AR|LI|CU|PI|LA|TA|JU|IC|CA|AN|AY|SM|LO|UC|TU|AP|HU|PA|AM|HV|MD))\s*$/);
+          if (trailingCityMatch) {
+            if (!cardCity) cardCity = trailingCityMatch[1];
+            cleanTitle = cleanTitle.slice(0, trailingCityMatch.index).trim();
+          }
+
           results.push({
             listingId,
-            title: title || cardText.slice(0, 80),
+            title: cleanTitle || title || rawText.slice(0, 80),
             rawPrice: rawPrice || 'No especificado',
             itemUrl: `https://www.facebook.com/marketplace/item/${listingId}/`,
-            city: cityName,
+            city: cardCity || cityName,
             searchTerm,
             category,
             scrapedAt: new Date().toISOString()

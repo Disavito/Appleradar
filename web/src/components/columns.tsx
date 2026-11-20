@@ -88,6 +88,24 @@ export const marketColumns: ColumnDef<ScrapedProduct>[] = [
     }
   },
   {
+    accessorKey: 'screenSize',
+    header: ({ column }) => (
+      <button
+        type="button"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        className="inline-flex items-center gap-1 hover:text-zinc-900 dark:hover:text-white transition"
+      >
+        <span>Pulg.</span>
+        <ArrowUpDown className="w-3 h-3" />
+      </button>
+    ),
+    cell: ({ row }) => (
+      <span className="text-[13px] text-zinc-700 dark:text-zinc-200 font-mono-nums whitespace-nowrap">
+        {row.original.screenSize ? `${row.original.screenSize}"` : '-'}
+      </span>
+    )
+  },
+  {
     accessorKey: 'storageGb',
     header: ({ column }) => (
       <button

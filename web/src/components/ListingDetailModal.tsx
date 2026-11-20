@@ -42,7 +42,9 @@ export const ListingDetailModal: React.FC<Props> = ({ item, onClose }) => {
                 {itemCat}
               </span>
               <span className="px-2.5 py-0.5 text-xs font-semibold rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
-                {item.chip}
+                {item.chip_variante && item.chip_variante !== 'N/A' && item.chip_variante !== 'Base'
+                  ? `${item.chip} ${item.chip_variante}`
+                  : item.chip}
               </span>
               {item.pulgadas && (
                 <span className="px-2 py-0.5 text-xs rounded-md bg-zinc-100 text-zinc-700 dark:bg-zinc-700/50 dark:text-zinc-200 font-mono-nums">

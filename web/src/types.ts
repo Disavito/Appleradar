@@ -75,6 +75,7 @@ export interface ScrapedProduct {
   chip: string;
   chipVariant: string;
   chipDisplay: string;
+  screenSize: number | null;
   storageGb: number | null;
   ramGb: number | null;
   batteryCycles: number | null;
@@ -168,6 +169,7 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
     chip,
     chipVariant: item.chip_variante || 'Base',
     chipDisplay,
+    screenSize: item.pulgadas ?? null,
     storageGb: item.almacenamiento_gb ?? null,
     ramGb: item.ram_gb ?? null,
     batteryCycles: item.ciclos_bateria ?? null,
