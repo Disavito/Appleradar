@@ -5,6 +5,7 @@ import { RawListing, DetailedListing } from './types';
 export class ScraperService {
   private browser: Browser | null = null;
   public loginWallDetected = false;
+  public accountRestricted = false;
 
   async initBrowser(): Promise<Browser> {
     const launchOptions: any = {
@@ -249,15 +250,22 @@ export class ScraperService {
     );
 
     if (rawItems.length === 0) {
-      const isLoginWall = await page.evaluate(() => {
-        const txt = (document.body.innerText || '').slice(0, 400);
-        return (
+      const status = await page.evaluate(() => {
+        const txt = (document.body.innerText || '').slice(0, 600);
+        const loginWall =
           txt.includes('Iniciar sesión en Facebook') ||
           txt.includes('Escanea el código QR') ||
-          txt.includes('Log in to Facebook')
-        );
+          txt.includes('Log in to Facebook');
+        const restricted =
+          /cuenta está restringida|account is restricted|No puedes usar esta función|temporalmente bloquead|suspensión|checkpoint/i.test(
+            txt
+          );
+        return { loginWall, restricted };
       });
-      if (isLoginWall) {
+      if (status.restricted) {
+        this.accountRestricted = true;
+        console.warn('⛔ Cuenta de Facebook restringida temporalmente. Deteniendo ciclo para proteger la cuenta.');
+      } else if (status.loginWall) {
         this.loginWallDetected = true;
         console.warn('🔒 Sesión de Facebook expirada o bloqueada (muro de login detectado).');
       }

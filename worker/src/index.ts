@@ -11,6 +11,7 @@ import {
   initFirebase
 } from './firestore';
 import { extractSpecsWithGemini } from './gemini';
+import { parseSpecsDeterministically } from './parser';
 import { FirestoreListing, RawListing } from './types';
 
 function getRandomDelay(minSeconds: number, maxSeconds: number): number {
@@ -65,15 +66,26 @@ async function runScrapingCycle() {
 
     let page = await openFreshPage();
 
+    const useGemini = process.env.USE_GEMINI === 'true';
+    const maxItemsPerCycle = Math.max(1, parseInt(process.env.MAX_ITEMS_PER_CYCLE || '35', 10) || 35);
+    console.log(
+      useGemini
+        ? `🤖 Motor de análisis: Gemini (${geminiModel})`
+        : `⚡ Motor de análisis: Parser local determinístico ($0/mes, sin IA) | Tope por ciclo: ${maxItemsPerCycle} anuncios`
+    );
+
     let totalProcessed = 0;
     let totalSkipped = 0;
 
     // Procesar ciudad por ciudad para guardar avances incrementales de inmediato
     for (const loc of activeLocations) {
+      if (scraper.accountRestricted || scraper.loginWallDetected || totalProcessed >= maxItemsPerCycle) break;
+
       console.log(`\n🌎 --- Procesando Zona: ${loc.city} ---`);
       const cityItems: RawListing[] = [];
 
       for (const kw of activeTerms) {
+        if (scraper.accountRestricted || scraper.loginWallDetected) break;
         try {
           const items = await scraper.scrapeSearchList(page, loc.path, loc.city, kw.term, kw.category);
           cityItems.push(...items);
@@ -84,8 +96,10 @@ async function runScrapingCycle() {
             page = await openFreshPage(page);
           }
         }
-        await sleep(getRandomDelay(2, 4));
+        await sleep(getRandomDelay(4, 7));
       }
+
+      if (scraper.accountRestricted || scraper.loginWallDetected) break;
 
       // Deduplicar dentro de la ciudad
       const uniqueMap = new Map<string, RawListing>();
@@ -104,10 +118,16 @@ async function runScrapingCycle() {
 
       let cityProcessed = 0;
       for (const entry of toInspect) {
+        if (scraper.accountRestricted || scraper.loginWallDetected) break;
+        if (totalProcessed >= maxItemsPerCycle) {
+          console.log(`🛑 Tope de ${maxItemsPerCycle} anuncios alcanzado en este ciclo (para proteger la cuenta de FB). El resto continúa en el próximo ciclo.`);
+          break;
+        }
+
         const rawItem = entry.item;
         cityProcessed++;
         totalProcessed++;
-        const pauseMs = getRandomDelay(3, 6);
+        const pauseMs = getRandomDelay(5, 8);
         console.log(
           `\n[${loc.city} ${cityProcessed}/${toInspect.length}] (${entry.reason}) Esperando ${(pauseMs / 1000).toFixed(1)}s -> ${rawItem.listingId}...`
         );
@@ -121,18 +141,32 @@ async function runScrapingCycle() {
         try {
           const detailedItem = await scraper.scrapeItemDetails(page, rawItem);
 
-          console.log(`🤖 Analizando con ${geminiModel}...`);
-          const { specs, success } = await extractSpecsWithGemini(
-            detailedItem.title,
-            detailedItem.rawPrice,
-            detailedItem.description,
-            detailedItem.locationText,
-            detailedItem.searchTerm,
-            geminiModel
-          );
+          let specs;
+          let success = true;
+          if (useGemini) {
+            console.log(`🤖 Analizando con ${geminiModel}...`);
+            const res = await extractSpecsWithGemini(
+              detailedItem.title,
+              detailedItem.rawPrice,
+              detailedItem.description,
+              detailedItem.locationText,
+              detailedItem.searchTerm,
+              geminiModel
+            );
+            specs = res.specs;
+            success = res.success;
+          } else {
+            specs = parseSpecsDeterministically(
+              detailedItem.title,
+              detailedItem.rawPrice,
+              detailedItem.description,
+              detailedItem.locationText,
+              detailedItem.city
+            );
+          }
 
           console.log(
-            `  [${specs.categoria}] ${specs.chip} ${specs.chip_variante !== 'N/A' ? specs.chip_variante : ''} | S/ ${specs.precio_normalizado_pen} | Tags: ${specs.tags.join(', ')}`
+            `  [${specs.categoria}] ${specs.chip} ${specs.chip_variante !== 'N/A' ? specs.chip_variante : ''} | ${specs.pulgadas ? specs.pulgadas + '"' : '-'} | ${specs.ram_gb ? specs.ram_gb + 'GB' : '-'} | ${specs.almacenamiento_gb ? specs.almacenamiento_gb + 'GB' : '-'} | S/ ${specs.precio_normalizado_pen}`
           );
 
           const nowIso = new Date().toISOString();
@@ -149,7 +183,7 @@ async function runScrapingCycle() {
             status: detailedItem.isSold ? 'sold' : 'active',
             matchedKeywords: [rawItem.searchTerm],
             analyzedWithGemini: success,
-            geminiModelUsed: geminiModel,
+            geminiModelUsed: useGemini ? geminiModel : 'local-parser-v1',
             lastSeenAt: nowIso,
             updatedAt: nowIso
           };
