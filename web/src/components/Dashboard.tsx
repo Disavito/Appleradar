@@ -423,7 +423,7 @@ export const Dashboard: React.FC<Props> = ({ listings }) => {
                 : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-[#18181b] dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-zinc-200'
             }`}
           >
-            {onlyNew24h ? '✓ ' : ''}Solo Nuevos (24h)
+            {onlyNew24h ? '✓ ' : ''}Publicados hoy (FB 24h)
           </button>
 
           <button

@@ -156,8 +156,8 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
   const isHook = Boolean(item.es_precio_gancho || item.precio_normalizado_pen <= 50);
   const isCorrected = Boolean(item.price_corrected && !isHook);
 
-  const scrapedMs = item.scrapedAt ? new Date(item.scrapedAt).getTime() : 0;
-  const isNew24h = scrapedMs > 0 && Date.now() - scrapedMs <= 24 * 3600 * 1000;
+  const pubMs = item.publishedAtEstimated ? new Date(item.publishedAtEstimated).getTime() : 0;
+  const isNew24h = pubMs > 0 && Date.now() - pubMs <= 24 * 3600 * 1000;
 
   return {
     id: item.id || item.listingId,
