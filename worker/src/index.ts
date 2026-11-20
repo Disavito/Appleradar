@@ -66,12 +66,14 @@ async function runScrapingCycle() {
 
     let page = await openFreshPage();
 
-    const useGemini = process.env.USE_GEMINI === 'true';
+    const geminiMode = (process.env.USE_GEMINI || (CONFIG.geminiApiKey ? 'auto' : 'false')).toLowerCase();
     const maxItemsPerCycle = Math.max(1, parseInt(process.env.MAX_ITEMS_PER_CYCLE || '35', 10) || 35);
     console.log(
-      useGemini
-        ? `🤖 Motor de análisis: Gemini (${geminiModel})`
-        : `⚡ Motor de análisis: Parser local determinístico ($0/mes, sin IA) | Tope por ciclo: ${maxItemsPerCycle} anuncios`
+      geminiMode === 'true'
+        ? `🤖 Motor de análisis: Gemini siempre (${geminiModel}) | Tope: ${maxItemsPerCycle}`
+        : geminiMode === 'auto'
+          ? `⚡ Motor híbrido: Parser local primero + Gemini (${geminiModel}) SOLO en anuncios ambiguos | Tope: ${maxItemsPerCycle}`
+          : `⚡ Motor de análisis: Parser local determinístico ($0/mes, sin IA) | Tope: ${maxItemsPerCycle}`
     );
 
     let totalProcessed = 0;
@@ -141,10 +143,23 @@ async function runScrapingCycle() {
         try {
           const detailedItem = await scraper.scrapeItemDetails(page, rawItem);
 
-          let specs;
+          let specs = parseSpecsDeterministically(
+            detailedItem.title,
+            detailedItem.rawPrice,
+            detailedItem.description,
+            detailedItem.locationText,
+            detailedItem.city
+          );
+          let usedGemini = false;
           let success = true;
-          if (useGemini) {
-            console.log(`🤖 Analizando con ${geminiModel}...`);
+
+          const isAmbiguous =
+            specs.categoria !== 'Otro' &&
+            ((specs.es_precio_gancho && detailedItem.description.length > 30) ||
+              (specs.chip === 'Desconocido' && detailedItem.description.length > 60));
+
+          if (geminiMode === 'true' || (geminiMode === 'auto' && CONFIG.geminiApiKey && isAmbiguous)) {
+            console.log(`🤖 Caso ambiguo -> consultando ${geminiModel}...`);
             const res = await extractSpecsWithGemini(
               detailedItem.title,
               detailedItem.rawPrice,
@@ -153,16 +168,11 @@ async function runScrapingCycle() {
               detailedItem.searchTerm,
               geminiModel
             );
-            specs = res.specs;
+            if (res.success) {
+              specs = res.specs;
+            }
             success = res.success;
-          } else {
-            specs = parseSpecsDeterministically(
-              detailedItem.title,
-              detailedItem.rawPrice,
-              detailedItem.description,
-              detailedItem.locationText,
-              detailedItem.city
-            );
+            usedGemini = true;
           }
 
           console.log(
@@ -183,7 +193,7 @@ async function runScrapingCycle() {
             status: detailedItem.isSold ? 'sold' : 'active',
             matchedKeywords: [rawItem.searchTerm],
             analyzedWithGemini: success,
-            geminiModelUsed: useGemini ? geminiModel : 'local-parser-v1',
+            geminiModelUsed: usedGemini ? geminiModel : 'local-parser-v1',
             lastSeenAt: nowIso,
             updatedAt: nowIso
           };
