@@ -49,9 +49,21 @@ async function runScrapingCycle() {
       return;
     }
 
-    const context = await scraper.createContext();
-    const page = await context.newPage();
-    await scraper.setupResourceBlocking(page);
+    const fbSession = await getSavedFbCookies();
+    const context = await scraper.createContext(fbSession);
+
+    const openFreshPage = async (oldPage?: any) => {
+      if (oldPage) {
+        try {
+          await oldPage.close();
+        } catch {}
+      }
+      const newPage = await context.newPage();
+      await scraper.setupResourceBlocking(newPage);
+      return newPage;
+    };
+
+    let page = await openFreshPage();
 
     let totalProcessed = 0;
     let totalSkipped = 0;
@@ -65,8 +77,12 @@ async function runScrapingCycle() {
         try {
           const items = await scraper.scrapeSearchList(page, loc.path, loc.city, kw.term, kw.category);
           cityItems.push(...items);
-        } catch (err) {
+        } catch (err: any) {
           console.error(`Error buscando "${kw.term}" en ${loc.city}:`, err);
+          if (/crashed|closed|Target page/i.test(String(err?.message || err))) {
+            console.warn('🔄 Pestaña de Chromium colapsada durante búsqueda; abriendo pestaña nueva...');
+            page = await openFreshPage(page);
+          }
         }
         await sleep(getRandomDelay(2, 4));
       }
@@ -96,6 +112,11 @@ async function runScrapingCycle() {
           `\n[${loc.city} ${cityProcessed}/${toInspect.length}] (${entry.reason}) Esperando ${(pauseMs / 1000).toFixed(1)}s -> ${rawItem.listingId}...`
         );
         await sleep(pauseMs);
+
+        if (totalProcessed > 1 && totalProcessed % 20 === 0) {
+          console.log('🧹 Reciclando pestaña de Chromium para liberar memoria...');
+          page = await openFreshPage(page);
+        }
 
         try {
           const detailedItem = await scraper.scrapeItemDetails(page, rawItem);
@@ -137,8 +158,12 @@ async function runScrapingCycle() {
           if (isPriceDrop && oldPrice !== undefined) {
             console.log(`📉 Bajada de precio registrada en Firestore para ${firestoreRecord.listingId}: S/ ${oldPrice} -> S/ ${newPrice}`);
           }
-        } catch (err) {
+        } catch (err: any) {
           console.error(`Error procesando item individual ${rawItem.listingId}:`, err);
+          if (/crashed|closed|Target page/i.test(String(err?.message || err))) {
+            console.warn('🔄 Pestaña de Chromium colapsada; abriendo pestaña nueva para continuar...');
+            page = await openFreshPage(page);
+          }
         }
       }
     }
