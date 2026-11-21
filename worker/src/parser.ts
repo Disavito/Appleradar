@@ -68,9 +68,14 @@ function detectCategory(title: string, description: string): { categoria: Extrac
   if (/\bmac\s*studio\b/i.test(t)) return { categoria: 'Mac Studio', isAccessoryOnly: false };
   if (/\bimac\b/i.test(t)) return { categoria: 'iMac', isAccessoryOnly: false };
   if (/\bmacbook\b/i.test(t)) {
-    if (/\bneo\b/i.test(t) || /\bneo\b/i.test(description)) return { categoria: 'MacBook Neo', isAccessoryOnly: false };
-    if (/\bair\b/i.test(t) || /\bair\b/i.test(description)) return { categoria: 'MacBook Air', isAccessoryOnly: false };
-    if (/\bpro\b/i.test(t) || /\bpro\b/i.test(description)) return { categoria: 'MacBook Pro', isAccessoryOnly: false };
+    // Primero revisar el TÍTULO completo para Neo/Air/Pro antes de mirar la descripción
+    if (/\bneo\b/i.test(t)) return { categoria: 'MacBook Neo', isAccessoryOnly: false };
+    if (/\bair\b/i.test(t)) return { categoria: 'MacBook Air', isAccessoryOnly: false };
+    if (/\bpro\b/i.test(t)) return { categoria: 'MacBook Pro', isAccessoryOnly: false };
+    // Solo si el título dice únicamente "MacBook" sin Air/Pro/Neo, buscar mención explícita en descripción
+    if (/\bmacbook\s*neo\b/i.test(description)) return { categoria: 'MacBook Neo', isAccessoryOnly: false };
+    if (/\bmacbook\s*air\b/i.test(description)) return { categoria: 'MacBook Air', isAccessoryOnly: false };
+    if (/\bmacbook\s*pro\b/i.test(description)) return { categoria: 'MacBook Pro', isAccessoryOnly: false };
     return { categoria: 'MacBook', isAccessoryOnly: false };
   }
   if (/\bipad\b/i.test(t)) return { categoria: 'iPad', isAccessoryOnly: false };
@@ -81,9 +86,9 @@ function detectCategory(title: string, description: string): { categoria: Extrac
   if (/\bmac\s*studio\b/i.test(full)) return { categoria: 'Mac Studio', isAccessoryOnly: false };
   if (/\bimac\b/i.test(full)) return { categoria: 'iMac', isAccessoryOnly: false };
   if (/\bmacbook\b/i.test(full)) {
-    if (/\bneo\b/i.test(full)) return { categoria: 'MacBook Neo', isAccessoryOnly: false };
-    if (/\bair\b/i.test(full)) return { categoria: 'MacBook Air', isAccessoryOnly: false };
-    if (/\bpro\b/i.test(full)) return { categoria: 'MacBook Pro', isAccessoryOnly: false };
+    if (/\bmacbook\s*neo\b/i.test(full)) return { categoria: 'MacBook Neo', isAccessoryOnly: false };
+    if (/\bmacbook\s*air\b/i.test(full)) return { categoria: 'MacBook Air', isAccessoryOnly: false };
+    if (/\bmacbook\s*pro\b/i.test(full)) return { categoria: 'MacBook Pro', isAccessoryOnly: false };
     return { categoria: 'MacBook', isAccessoryOnly: false };
   }
   if (/\bipad\b/i.test(full)) return { categoria: 'iPad', isAccessoryOnly: false };
@@ -92,8 +97,8 @@ function detectCategory(title: string, description: string): { categoria: Extrac
   return { categoria: 'Otro', isAccessoryOnly: false };
 }
 
-function detectChip(fullText: string): { chip: ExtractedMacSpecs['chip']; chip_variante: ExtractedMacSpecs['chip_variante'] } {
-  const varMatch = fullText.match(/\b(m[1-5])\s*(ultra|max|pro)\b/i);
+function detectChipFromText(text: string): { chip: ExtractedMacSpecs['chip']; chip_variante: ExtractedMacSpecs['chip_variante'] } {
+  const varMatch = text.match(/\b(m[1-5])\s*(ultra|max|pro)\b/i);
   if (varMatch) {
     const chip = varMatch[1].toUpperCase() as ExtractedMacSpecs['chip'];
     const rawVar = varMatch[2].toLowerCase();
@@ -101,17 +106,29 @@ function detectChip(fullText: string): { chip: ExtractedMacSpecs['chip']; chip_v
     return { chip, chip_variante };
   }
 
-  const baseMatch = fullText.match(/\b(m[1-5])\b/i);
+  const baseMatch = text.match(/\b(m[1-5])\b/i);
   if (baseMatch) {
     return { chip: baseMatch[1].toUpperCase() as ExtractedMacSpecs['chip'], chip_variante: 'Base' };
   }
 
-  if (/\b(?:core\s*)?i9\b/i.test(fullText)) return { chip: 'Intel i9', chip_variante: 'N/A' };
-  if (/\b(?:core\s*)?i7\b/i.test(fullText)) return { chip: 'Intel i7', chip_variante: 'N/A' };
-  if (/\b(?:core\s*)?i5\b/i.test(fullText)) return { chip: 'Intel i5', chip_variante: 'N/A' };
-  if (/\bA1[0-9](?:\s*(?:Pro|Bionic))?\b/i.test(fullText)) return { chip: 'A-Series', chip_variante: 'N/A' };
+  if (/\b(?:core\s*)?i9\b/i.test(text)) return { chip: 'Intel i9', chip_variante: 'N/A' };
+  if (/\b(?:core\s*)?i7\b/i.test(text)) return { chip: 'Intel i7', chip_variante: 'N/A' };
+  if (/\b(?:core\s*)?i5\b/i.test(text)) return { chip: 'Intel i5', chip_variante: 'N/A' };
+  if (/\bA1[0-9](?:\s*(?:Pro|Bionic))?\b/i.test(text)) return { chip: 'A-Series', chip_variante: 'N/A' };
 
   return { chip: 'Desconocido', chip_variante: 'N/A' };
+}
+
+function detectChip(title: string, description: string, categoria: ExtractedMacSpecs['categoria']): { chip: ExtractedMacSpecs['chip']; chip_variante: ExtractedMacSpecs['chip_variante'] } {
+  // Priorizar siempre el chip escrito en el TÍTULO para no mezclar menciones secundarias de la descripción
+  const fromTitle = detectChipFromText(title || '');
+  let res = fromTitle.chip !== 'Desconocido' ? fromTitle : detectChipFromText(description || '');
+
+  // MacBook Air nunca lleva variante Pro/Max/Ultra
+  if (categoria === 'MacBook Air' && res.chip_variante !== 'Base' && res.chip_variante !== 'N/A') {
+    res = { chip: res.chip, chip_variante: 'Base' };
+  }
+  return res;
 }
 
 function detectPulgadas(fullText: string, categoria: ExtractedMacSpecs['categoria']): number | null {
@@ -219,7 +236,7 @@ export function parseSpecsDeterministically(
 ): ExtractedMacSpecs {
   const fullText = `${title} ${description}`.trim();
   const { categoria, isAccessoryOnly } = detectCategory(title, description);
-  const { chip, chip_variante } = detectChip(fullText);
+  const { chip, chip_variante } = detectChip(title, description, categoria);
   const pulgadas = detectPulgadas(fullText, categoria);
   const ram_gb = detectRamGb(fullText);
   const almacenamiento_gb = detectStorageGb(fullText);

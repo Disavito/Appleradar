@@ -112,7 +112,8 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
   else if (cat === 'iPad') family = 'iPad';
   else if (cat === 'iPhone') family = 'iPhone';
   else if (cat === 'MacBook Neo') family = 'Neo';
-  else if (cat === 'MacBook Pro' || cat === 'MacBook Air' || cat === 'MacBook') {
+  else if (cat === 'MacBook Pro' || cat === 'MacBook Air') family = 'MacBook';
+  else if (cat === 'MacBook') {
     family = /\bneo\b/i.test(titleLower) ? 'Neo' : 'MacBook';
   } else if (cat === 'Otro') {
     family = 'Otro';
