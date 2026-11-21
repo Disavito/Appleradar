@@ -96,6 +96,13 @@ export async function getSavedFbCookies(): Promise<{ cookies: any[]; rawString?:
   const snap = await db.collection(CONFIG.settingsCollection).doc('fb_session').get();
   if (!snap.exists) return null;
   const data = snap.data() as any;
+
+  // Si la sesión en Firestore está marcada como expirada y no hay un reemplazo manual nuevo,
+  // devolver null para que el worker use FB_COOKIES actualizado desde Coolify / .env.
+  if (data.expired === true && data.manualOverride !== true) {
+    return null;
+  }
+
   return {
     cookies: Array.isArray(data.cookies) ? data.cookies : [],
     rawString: typeof data.rawString === 'string' ? data.rawString : undefined,
@@ -113,6 +120,7 @@ export async function saveRefreshedFbCookies(cookies: any[]): Promise<void> {
   await db.collection(CONFIG.settingsCollection).doc('fb_session').set(
     {
       cookies: filtered,
+      rawString: '',
       expired: false,
       manualOverride: false,
       updatedAt: new Date().toISOString()
@@ -123,13 +131,15 @@ export async function saveRefreshedFbCookies(cookies: any[]): Promise<void> {
 
 export async function markFbSessionExpired(expired: boolean): Promise<void> {
   if (!db) initFirebase();
-  await db.collection(CONFIG.settingsCollection).doc('fb_session').set(
-    {
-      expired,
-      lastCheckedAt: new Date().toISOString()
-    },
-    { merge: true }
-  );
+  const payload: Record<string, any> = {
+    expired,
+    lastCheckedAt: new Date().toISOString()
+  };
+  if (expired) {
+    payload.manualOverride = false;
+    payload.rawString = '';
+  }
+  await db.collection(CONFIG.settingsCollection).doc('fb_session').set(payload, { merge: true });
 }
 
 function parseSimplePenPrice(rawPrice: string): number | null {
