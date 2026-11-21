@@ -239,22 +239,17 @@ export async function classifyDiscoveredListings(items: RawListing[]): Promise<{
       }
 
       unchangedCount++;
-      batch.update(snap.ref, {
-        lastSeenAt: nowIso,
-        matchedKeywords: admin.firestore.FieldValue.arrayUnion(item.searchTerm)
-      });
-      batchOps++;
-
-      if (batchOps >= 400) {
-        await batch.commit();
-        batch = db.batch();
-        batchOps = 0;
-      }
+      // NOTA CRÍTICA: No escribir lastSeenAt en lote para cientos de anuncios sin cambios,
+      // porque agota la cuota gratuita de 20,000 escrituras diarias de Firestore en pocos ciclos.
     }
   }
 
   if (batchOps > 0) {
-    await batch.commit();
+    try {
+      await batch.commit();
+    } catch (e: any) {
+      console.warn('Advertencia guardando cambios de precio rápidos en Firestore:', e?.message || e);
+    }
   }
 
   return { toInspect, unchangedCount };
