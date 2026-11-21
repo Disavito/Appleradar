@@ -21,7 +21,7 @@ function getGenerativeModel(modelName: string) {
           categoria: {
             type: SchemaType.STRING,
             format: 'enum',
-            enum: ['MacBook Pro', 'MacBook Air', 'MacBook', 'Mac Mini', 'iMac', 'Mac Studio', 'iPad', 'iPhone', 'Otro']
+            enum: ['MacBook Pro', 'MacBook Air', 'MacBook Neo', 'MacBook', 'Mac Mini', 'iMac', 'Mac Studio', 'iPad', 'iPhone', 'Otro']
           },
           chip: {
             type: SchemaType.STRING,

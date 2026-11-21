@@ -68,6 +68,7 @@ function detectCategory(title: string, description: string): { categoria: Extrac
   if (/\bmac\s*studio\b/i.test(t)) return { categoria: 'Mac Studio', isAccessoryOnly: false };
   if (/\bimac\b/i.test(t)) return { categoria: 'iMac', isAccessoryOnly: false };
   if (/\bmacbook\b/i.test(t)) {
+    if (/\bneo\b/i.test(t) || /\bneo\b/i.test(description)) return { categoria: 'MacBook Neo', isAccessoryOnly: false };
     if (/\bair\b/i.test(t) || /\bair\b/i.test(description)) return { categoria: 'MacBook Air', isAccessoryOnly: false };
     if (/\bpro\b/i.test(t) || /\bpro\b/i.test(description)) return { categoria: 'MacBook Pro', isAccessoryOnly: false };
     return { categoria: 'MacBook', isAccessoryOnly: false };
@@ -80,6 +81,7 @@ function detectCategory(title: string, description: string): { categoria: Extrac
   if (/\bmac\s*studio\b/i.test(full)) return { categoria: 'Mac Studio', isAccessoryOnly: false };
   if (/\bimac\b/i.test(full)) return { categoria: 'iMac', isAccessoryOnly: false };
   if (/\bmacbook\b/i.test(full)) {
+    if (/\bneo\b/i.test(full)) return { categoria: 'MacBook Neo', isAccessoryOnly: false };
     if (/\bair\b/i.test(full)) return { categoria: 'MacBook Air', isAccessoryOnly: false };
     if (/\bpro\b/i.test(full)) return { categoria: 'MacBook Pro', isAccessoryOnly: false };
     return { categoria: 'MacBook', isAccessoryOnly: false };

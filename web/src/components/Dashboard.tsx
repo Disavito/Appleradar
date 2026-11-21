@@ -13,6 +13,7 @@ const FAMILY_TABS = [
   { id: 'ALL', label: 'Todas' },
   { id: 'MacBook Air', label: 'MacBook Air' },
   { id: 'MacBook Pro', label: 'MacBook Pro' },
+  { id: 'Neo', label: 'MacBook Neo' },
   { id: 'Desktop', label: 'Mac Mini / iMac' },
   { id: 'iPad', label: 'iPads' },
   { id: 'iPhone', label: 'iPhones' },

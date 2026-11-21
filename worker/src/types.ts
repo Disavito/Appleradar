@@ -41,6 +41,7 @@ export interface ExtractedMacSpecs {
   categoria:
     | 'MacBook Pro'
     | 'MacBook Air'
+    | 'MacBook Neo'
     | 'MacBook'
     | 'Mac Mini'
     | 'iMac'

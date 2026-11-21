@@ -25,6 +25,7 @@ export interface ListingItem {
   categoria?:
     | 'MacBook Pro'
     | 'MacBook Air'
+    | 'MacBook Neo'
     | 'MacBook'
     | 'Mac Mini'
     | 'iMac'
@@ -110,8 +111,9 @@ export function toScrapedProduct(item: ListingItem): ScrapedProduct {
   else if (cat === 'Mac Studio') family = 'Mac Studio';
   else if (cat === 'iPad') family = 'iPad';
   else if (cat === 'iPhone') family = 'iPhone';
+  else if (cat === 'MacBook Neo') family = 'Neo';
   else if (cat === 'MacBook Pro' || cat === 'MacBook Air' || cat === 'MacBook') {
-    family = titleLower.includes('neo') ? 'Neo' : 'MacBook';
+    family = /\bneo\b/i.test(titleLower) ? 'Neo' : 'MacBook';
   } else if (cat === 'Otro') {
     family = 'Otro';
   } else {
